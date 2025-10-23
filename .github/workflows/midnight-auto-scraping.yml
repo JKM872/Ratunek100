@@ -17,10 +17,10 @@ jobs:
     
     steps:
     - name: 📥 Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 🐍 Setup Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -54,7 +54,7 @@ jobs:
     
     - name: 📊 Upload Football outputs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: football-results-${{ github.run_number }}
         path: outputs/*football*.csv
@@ -68,10 +68,10 @@ jobs:
     
     steps:
     - name: 📥 Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 🐍 Setup Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -105,7 +105,7 @@ jobs:
     
     - name: 📊 Upload Basketball outputs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: basketball-results-${{ github.run_number }}
         path: outputs/*basketball*.csv
@@ -119,10 +119,10 @@ jobs:
     
     steps:
     - name: 📥 Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 🐍 Setup Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -156,7 +156,7 @@ jobs:
     
     - name: 📊 Upload Handball outputs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: handball-results-${{ github.run_number }}
         path: outputs/*handball*.csv
@@ -170,10 +170,10 @@ jobs:
     
     steps:
     - name: 📥 Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 🐍 Setup Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -207,7 +207,7 @@ jobs:
     
     - name: 📊 Upload Volleyball outputs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: volleyball-results-${{ github.run_number }}
         path: outputs/*volleyball*.csv
@@ -221,10 +221,10 @@ jobs:
     
     steps:
     - name: 📥 Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 🐍 Setup Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -258,7 +258,7 @@ jobs:
     
     - name: 📊 Upload Hockey outputs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: hockey-results-${{ github.run_number }}
         path: outputs/*hockey*.csv
@@ -272,10 +272,10 @@ jobs:
     
     steps:
     - name: 📥 Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 🐍 Setup Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -309,7 +309,7 @@ jobs:
     
     - name: 📊 Upload Tennis outputs
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: tennis-results-${{ github.run_number }}
         path: outputs/*tennis*.csv
