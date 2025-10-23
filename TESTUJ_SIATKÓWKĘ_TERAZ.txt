@@ -1,0 +1,130 @@
+═══════════════════════════════════════════════════════════════════
+🏐 JAK PRZETESTOWAĆ SIATKÓWKĘ TERAZ (3 MINUTY)
+═══════════════════════════════════════════════════════════════════
+
+✅ Wszystko zostało wrzucone na GitHub!
+✅ Link: https://github.com/JKM2828/volleyball-scraper
+
+═══════════════════════════════════════════════════════════════════
+📝 SZYBKI START (3 kroki):
+═══════════════════════════════════════════════════════════════════
+
+KROK 1: Dodaj hasło email (1 min) - TYLKO RAZ!
+------------------------------------------------
+1. Wejdź: https://github.com/JKM2828/volleyball-scraper/settings/secrets/actions
+2. Kliknij: "New repository secret"
+3. Name: EMAIL_PASSWORD
+4. Secret: vurb tcai zaaq itjx
+5. Add secret
+
+⚠️ WAŻNE: To musisz zrobić tylko RAZ!
+
+
+KROK 2: Uruchom workflow siatkówki (30 sekund)
+-----------------------------------------------
+1. Wejdź: https://github.com/JKM2828/volleyball-scraper/actions
+2. Z lewej listy kliknij: 🏐 Volleyball (Manual)
+3. Kliknij zielony przycisk: "Run workflow"
+4. Potwierdź: kliknij jeszcze raz "Run workflow"
+
+
+KROK 3: Poczekaj i sprawdź email (3-5 min)
+-------------------------------------------
+1. Zobacz postęp: kółeczko 🟡 żółte = wykonuje się
+2. Po ~3-5 min: zielony checkmark ✅ = sukces
+3. Sprawdź email: jakub.majka.zg@gmail.com
+4. Gotowe! 🎉
+
+
+═══════════════════════════════════════════════════════════════════
+🎯 CO MASZ TERAZ DOSTĘPNE:
+═══════════════════════════════════════════════════════════════════
+
+🔴 AUTOMATYCZNE (uruchamia się samo):
+-------------------------------------
+📅 Midnight Auto Scraping
+   ⏰ Codziennie o 0:00 czasu warszawskiego
+   🏆 6 sportów jednocześnie: ⚽🏀🤾🏐🏒🎾
+   📧 Osobny email dla każdego sportu
+   Link: https://github.com/JKM2828/volleyball-scraper/actions/workflows/midnight-auto-scraping.yml
+
+🟢 MANUALNE (testowanie - kliknij i uruchom):
+----------------------------------------------
+🏐 Volleyball (Manual)
+   Link: https://github.com/JKM2828/volleyball-scraper/actions/workflows/manual-volleyball.yml
+
+⚽ Football (Manual)
+   Link: https://github.com/JKM2828/volleyball-scraper/actions/workflows/manual-football.yml
+
+🏀 Basketball (Manual)
+   Link: https://github.com/JKM2828/volleyball-scraper/actions/workflows/manual-basketball.yml
+
+🤾 Handball (Manual)
+   Link: https://github.com/JKM2828/volleyball-scraper/actions/workflows/manual-handball.yml
+
+🏒 Hockey (Manual)
+   Link: https://github.com/JKM2828/volleyball-scraper/actions/workflows/manual-hockey.yml
+
+🎾 Tennis (Manual)
+   Link: https://github.com/JKM2828/volleyball-scraper/actions/workflows/manual-tennis.yml
+
+
+═══════════════════════════════════════════════════════════════════
+💡 WSKAZÓWKI:
+═══════════════════════════════════════════════════════════════════
+
+✅ Każdy sport możesz uruchomić osobno
+✅ Możesz wybrać inną datę (opcjonalne pole "date")
+✅ Wszystkie workflow działają równolegle (nie blokują się)
+✅ Możesz zobaczyć logi każdego uruchomienia
+✅ Pliki CSV są zapisywane jako artifacts (30 dni)
+
+
+═══════════════════════════════════════════════════════════════════
+🎊 CO DZIAŁA OD JUTRA AUTOMATYCZNIE:
+═══════════════════════════════════════════════════════════════════
+
+🌙 O godzinie 0:00 czasu warszawskiego:
+   → 6 sportów uruchamia się JEDNOCZEŚNIE
+   → Każdy sport scraping trwa ~3-5 min
+   → Dostaniesz 6 emaili (po jednym na sport)
+   → Wszystko bez Twojego laptopa!
+
+⏰ Czas wykonania:
+   Zamiast: 6 × 5 min = 30 minut sekwencyjnie
+   Będzie:  5 minut RAZEM (równolegle!) 🚀
+
+
+═══════════════════════════════════════════════════════════════════
+❓ PYTANIA / PROBLEMY:
+═══════════════════════════════════════════════════════════════════
+
+Q: Email nie przychodzi?
+A: 1. Sprawdź SPAM
+   2. Zobacz logi workflow (kliknij na nazwę uruchomienia)
+   3. Sprawdź czy EMAIL_PASSWORD secret jest dodany
+
+Q: Workflow nie działa?
+A: 1. Sprawdź czy jest włączony (Actions → Enable workflow)
+   2. Zobacz logi szczegółowe
+   3. Sprawdź czy EMAIL_PASSWORD jest ustawiony
+
+Q: Jak zmienić godzinę automatycznego scrapingu?
+A: Edytuj plik: .github/workflows/midnight-auto-scraping.yml
+   Zmień: cron: '0 23 * * *' (23:00 UTC = 0:00 PL)
+
+Q: Jak wyłączyć konkretny sport?
+A: Edytuj: .github/workflows/midnight-auto-scraping.yml
+   Usuń całą sekcję danego sportu (np. "tennis:")
+
+
+═══════════════════════════════════════════════════════════════════
+
+🚀 ZACZYNAJ OD: Dodaj EMAIL_PASSWORD secret (KROK 1)
+📧 Email: jakub.majka.zg@gmail.com
+
+POWODZENIA! 🎉
+
+═══════════════════════════════════════════════════════════════════
+
+
