@@ -39,6 +39,7 @@ import time
 import os
 import csv
 import re
+import json
 from datetime import datetime
 from typing import List, Dict, Optional
 
@@ -613,7 +614,7 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
         out['qualifies'] = False
     
     # Kursy bukmacherskie - dodatkowa informacja (NIE wpływa na scoring!)
-    odds = extract_betting_odds(soup)
+    odds = extract_betting_odds_with_selenium(driver, soup)
     out['home_odds'] = odds['home_odds']
     out['away_odds'] = odds['away_odds']
 
@@ -1004,9 +1005,81 @@ def extract_team_form(soup: BeautifulSoup, driver: webdriver.Chrome, side: str, 
     return form[:5]
 
 
+def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: BeautifulSoup) -> Dict[str, Optional[float]]:
+    """
+    Ekstraktuj kursy bukmacherskie dla meczu używając Selenium (dynamiczne ładowanie).
+    
+    Returns:
+        {'home_odds': 1.85, 'away_odds': 2.10} lub {'home_odds': None, 'away_odds': None}
+    """
+    try:
+        odds_data = {'home_odds': None, 'away_odds': None}
+        
+        # METODA 1: Szukaj na stronie H2H w sekcji z meczem (górna część strony)
+        # Najpierw spróbuj znaleźć kontener z kursami używając Selenium
+        try:
+            # Poczekaj na załadowanie kursów (max 3 sekundy)
+            odds_container = WebDriverWait(driver, 3).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 
+                    "[class*='odds'], [class*='Odds'], [class*='bookmaker'], [class*='Bookmaker']"))
+            )
+            time.sleep(0.5)  # Krótkie opóźnienie dla pełnego załadowania
+        except (TimeoutException, NoSuchElementException):
+            # Kursy nie są dostępne
+            pass
+        
+        # METODA 2: Szukaj kursów w różnych miejscach używając Selenium
+        try:
+            # Szukaj wszystkich elementów które mogą zawierać kursy
+            odds_elements = driver.find_elements(By.XPATH, 
+                "//*[contains(@class, 'odds') or contains(@class, 'Odds') or contains(text(), '.')]")
+            
+            odds_values = []
+            for elem in odds_elements:
+                try:
+                    text = elem.text.strip()
+                    # Szukaj liczb typu 1.85, 2.10, etc. (kursy bukmacherskie)
+                    # Kursy są zazwyczaj między 1.01 a 50.00
+                    odds_match = re.findall(r'\b(\d+\.\d{2})\b', text)
+                    for odd_str in odds_match:
+                        odd_val = float(odd_str)
+                        # Filtruj tylko wartości typowe dla kursów (1.01 - 50.00)
+                        if 1.01 <= odd_val <= 50.0:
+                            odds_values.append(odd_val)
+                except:
+                    continue
+            
+            # Jeśli znaleźliśmy co najmniej 2 kursy (home i away)
+            if len(odds_values) >= 2:
+                # Weź pierwsze dwa kursy (zazwyczaj: home, draw/-, away)
+                # Dla sportów bez remisu: home, away
+                odds_data['home_odds'] = odds_values[0]
+                # Jeśli mamy 3 kursy (1X2), weź trzeci jako away
+                if len(odds_values) >= 3:
+                    odds_data['away_odds'] = odds_values[2]
+                else:
+                    odds_data['away_odds'] = odds_values[1]
+                
+                print(f"   💰 Znaleziono kursy: {odds_data['home_odds']} - {odds_data['away_odds']}")
+                return odds_data
+                
+        except Exception as e:
+            pass
+        
+        # METODA 3: Fallback do starej metody (BeautifulSoup)
+        if odds_data['home_odds'] is None:
+            return extract_betting_odds(soup)
+        
+        return odds_data
+        
+    except Exception as e:
+        print(f"   ⚠️ extract_betting_odds_with_selenium error: {e}")
+        return {'home_odds': None, 'away_odds': None}
+
+
 def extract_betting_odds(soup: BeautifulSoup) -> Dict[str, Optional[float]]:
     """
-    Ekstraktuj kursy bukmacherskie dla meczu (jeśli dostępne).
+    Ekstraktuj kursy bukmacherskie dla meczu (jeśli dostępne) - wersja BeautifulSoup.
     
     Returns:
         {'home_odds': 1.85, 'away_odds': 2.10} lub {'home_odds': None, 'away_odds': None}
@@ -1550,7 +1623,7 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
     out['form_b'] = extract_player_form_simple(soup, player_b, h2h)
     
     # 4. KURSY BUKMACHERSKIE - dodatkowa informacja (NIE wpływa na scoring!)
-    odds = extract_betting_odds(soup)
+    odds = extract_betting_odds_with_selenium(driver, soup)
     out['home_odds'] = odds['home_odds']
     out['away_odds'] = odds['away_odds']
     
