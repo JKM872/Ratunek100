@@ -1,0 +1,318 @@
+name: Midnight Auto Scraping (All Sports)
+
+on:
+  schedule:
+    # Codziennie o 23:00 UTC = 0:00 czasu warszawskiego (UTC+1)
+    # W letnim czasie (UTC+2) będzie to 1:00, ale lepiej zachować stałą godzinę
+    - cron: '0 23 * * *'
+  
+  # Możliwość ręcznego uruchomienia (zakładka Actions na GitHub)
+  workflow_dispatch:
+
+jobs:
+  # ⚽ FOOTBALL
+  football:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: ⚽ Run Football Scraping
+      run: |
+        TODAY=$(date +%Y-%m-%d)
+        echo "🗓️ Scraping Football dla daty: $TODAY"
+        
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports football \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload Football outputs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: football-results-${{ github.run_number }}
+        path: outputs/*football*.csv
+        if-no-files-found: ignore
+        retention-days: 30
+
+  # 🏀 BASKETBALL
+  basketball:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🏀 Run Basketball Scraping
+      run: |
+        TODAY=$(date +%Y-%m-%d)
+        echo "🗓️ Scraping Basketball dla daty: $TODAY"
+        
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports basketball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload Basketball outputs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: basketball-results-${{ github.run_number }}
+        path: outputs/*basketball*.csv
+        if-no-files-found: ignore
+        retention-days: 30
+
+  # 🤾 HANDBALL
+  handball:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🤾 Run Handball Scraping
+      run: |
+        TODAY=$(date +%Y-%m-%d)
+        echo "🗓️ Scraping Handball dla daty: $TODAY"
+        
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports handball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload Handball outputs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: handball-results-${{ github.run_number }}
+        path: outputs/*handball*.csv
+        if-no-files-found: ignore
+        retention-days: 30
+
+  # 🏐 VOLLEYBALL
+  volleyball:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🏐 Run Volleyball Scraping
+      run: |
+        TODAY=$(date +%Y-%m-%d)
+        echo "🗓️ Scraping Volleyball dla daty: $TODAY"
+        
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports volleyball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload Volleyball outputs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: volleyball-results-${{ github.run_number }}
+        path: outputs/*volleyball*.csv
+        if-no-files-found: ignore
+        retention-days: 30
+
+  # 🏒 HOCKEY
+  hockey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🏒 Run Hockey Scraping
+      run: |
+        TODAY=$(date +%Y-%m-%d)
+        echo "🗓️ Scraping Hockey dla daty: $TODAY"
+        
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports hockey \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload Hockey outputs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: hockey-results-${{ github.run_number }}
+        path: outputs/*hockey*.csv
+        if-no-files-found: ignore
+        retention-days: 30
+
+  # 🎾 TENNIS
+  tennis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🎾 Run Tennis Scraping
+      run: |
+        TODAY=$(date +%Y-%m-%d)
+        echo "🗓️ Scraping Tennis dla daty: $TODAY"
+        
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports tennis \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload Tennis outputs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: tennis-results-${{ github.run_number }}
+        path: outputs/*tennis*.csv
+        if-no-files-found: ignore
+        retention-days: 30
+

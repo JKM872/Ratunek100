@@ -1,0 +1,211 @@
+═══════════════════════════════════════════════════════════════════
+🚀 GOTOWE DO UPLOADU NA GITHUB!
+═══════════════════════════════════════════════════════════════════
+
+🎯 NOWA KONFIGURACJA (październik 2025):
+   ⏰ Automatyczny scraping o 0:00 czasu warszawskiego
+   ⚽🏀🤾🏐🏒🎾 6 sportów jednocześnie (równolegle!)
+   📧 Osobny email dla każdego sportu
+   🧪 Możliwość testowania każdego sportu osobno
+
+✅ CO ZOSTAŁO PRZYGOTOWANE:
+
+✅ Workflow GitHub Actions (.github/workflows/)
+   🔴 AUTOMATYCZNE:
+   - midnight-auto-scraping.yml - codziennie o 0:00 (6 sportów)
+   - daily-scraping.yml - codziennie o 11:00 (volleyball)
+   
+   🟢 MANUALNE (testowanie):
+   - manual-football.yml ⚽
+   - manual-basketball.yml 🏀
+   - manual-handball.yml 🤾
+   - manual-volleyball.yml 🏐
+   - manual-hockey.yml 🏒
+   - manual-tennis.yml 🎾
+   - all-sports-scraping.yml (wiele sportów naraz)
+
+✅ Konfiguracja Git
+   - Repository zainicjalizowane
+   - Wszystkie pliki dodane
+   - Commit utworzony
+   - Branch: main
+
+✅ Dokumentacja
+   - GITHUB_QUICK_START.md - start w 5 minut
+   - GITHUB_ACTIONS_SETUP.md - pełna instrukcja
+   - UPLOAD_INSTRUKCJA.txt - jak wrzucić na GitHub
+
+✅ Pliki pomocnicze
+   - .gitignore - wykluczenia (outputs/, __pycache__)
+   - upload_to_github.bat - skrypt helper
+
+═══════════════════════════════════════════════════════════════════
+📝 CO MUSISZ TERAZ ZROBIĆ (5 MINUT):
+═══════════════════════════════════════════════════════════════════
+
+KROK 1: Stwórz repo na GitHub (2 min)
+--------------------------------------
+1. Wejdź: https://github.com/JKM2828
+2. New repository
+3. Nazwa: volleyball-scraper
+4. ✅ Private
+5. ✅ Add a README file
+6. Create repository
+
+KROK 2: WYBIERZ OPCJĘ UPLOADU:
+--------------------------------
+
+🌟 OPCJA A: Przez przeglądarkę (PROSTSZE) ⬅️ POLECAM
+====================================================
+
+1. W repo kliknij: Add file → Upload files
+2. Otwórz folder: C:\Users\jakub\Downloads\Ratowanie\
+3. Zaznacz WSZYSTKIE pliki (Ctrl+A)
+4. Przeciągnij na GitHub
+5. Commit: "Initial commit"
+6. Commit changes
+
+⚠️ WAŻNE: Upewnij się że folder .github został wrzucony!
+
+
+💻 OPCJA B: Przez git (ZAAWANSOWANE)
+====================================
+
+W PowerShell tutaj (C:\Users\jakub\Downloads\Ratowanie):
+
+git remote add origin https://github.com/JKM2828/volleyball-scraper.git
+git push -u origin main
+
+KROK 3: Dodaj hasło email (1 min)
+----------------------------------
+1. Settings → Secrets and variables → Actions
+2. New repository secret
+3. Name: EMAIL_PASSWORD
+4. Secret: vurb tcai zaaq itjx
+5. Add secret
+
+KROK 4: TEST! 🎯 (2 min)
+-------------------------
+
+MASZ TERAZ 2 TYPY WORKFLOW:
+
+🔴 AUTOMATYCZNY (o północy 0:00):
+   - Midnight Auto Scraping - uruchamia się CODZIENNIE o 0:00 czasu warszawskiego
+   - Scraping wszystkich 6 sportów JEDNOCZEŚNIE
+   - Każdy sport osobny job (równolegle)
+
+🟢 MANUALNE (do testowania):
+   ⚽ Football (Manual)
+   🏀 Basketball (Manual)
+   🤾 Handball (Manual)
+   🏐 Volleyball (Manual)
+   🏒 Hockey (Manual)
+   🎾 Tennis (Manual)
+
+JAK PRZETESTOWAĆ SIATKÓWKĘ TERAZ:
+1. Actions → 🏐 Volleyball (Manual)
+2. Run workflow (zielony przycisk)
+3. Poczekaj 3-5 min
+4. Sprawdź email!
+
+═══════════════════════════════════════════════════════════════════
+✅ PO WYKONANIU POWYŻSZYCH KROKÓW:
+═══════════════════════════════════════════════════════════════════
+
+✅ Scraper działa 24/7 bez laptopa
+✅ Codziennie o 0:00 warszawskiego czasu automatycznie
+✅ Email z wynikami dla KAŻDEGO sportu osobno
+✅ 7 GB RAM (vs Heroku 512 MB!)
+✅ Całkowicie DARMOWE (GitHub Student Pack)
+✅ 6 sportów jednocześnie: Football, Basketball, Handball, Volleyball, Hockey, Tennis
+
+═══════════════════════════════════════════════════════════════════
+📚 DOKUMENTACJA
+═══════════════════════════════════════════════════════════════════
+
+GITHUB_QUICK_START.md       - Szybki start (5 min)
+GITHUB_ACTIONS_SETUP.md     - Pełna instrukcja
+UPLOAD_INSTRUKCJA.txt       - Szczegóły uploadu
+
+═══════════════════════════════════════════════════════════════════
+💰 GITHUB STUDENT PACK BENEFITS
+═══════════════════════════════════════════════════════════════════
+
+✅ 3000 minut/miesiąc (zamiast 2000)
+✅ 7 GB RAM
+✅ Prywatne repo
+✅ Nielimitowane storages
+
+Zużycie:
+- 1 scraping (1 sport): ~3-5 minut
+- 6 sportów jednocześnie: ~3-5 minut (równolegle!)
+- Codziennie przez 30 dni: ~150 minut
+- ZOSTAJE: 2850 minut na testy! 🎉
+
+💡 UWAGA: Wszystkie 6 sportów uruchamiają się RÓWNOLEGLE (jednocześnie),
+więc zamiast 30 minut (6×5) zajmuje to tylko 5 minut!
+
+═══════════════════════════════════════════════════════════════════
+🆚 PORÓWNANIE: GitHub Actions vs Heroku
+═══════════════════════════════════════════════════════════════════
+
+                    GitHub Actions      Heroku Basic
+                    --------------      ------------
+Koszt               DARMOWE            $13/miesiąc
+RAM                 7 GB               512 MB ❌
+Chrome              ✅ Wbudowane       ⚠️ Trzeba instalować
+Działa przy 30      ✅ TAK             ❌ NIE (się zawiesza)
+meczach?
+Setup               5 minut            15 minut
+Niezawodność        ✅✅✅             ❌ (zawiesza się)
+
+WERDYKT: GitHub Actions WYGRYWA! 🏆
+
+═══════════════════════════════════════════════════════════════════
+🔧 ZAAWANSOWANE (opcjonalne)
+═══════════════════════════════════════════════════════════════════
+
+Zmień godzinę scrapingu:
+   Edytuj: .github/workflows/midnight-auto-scraping.yml
+   Zmień: cron: '0 23 * * *' (23:00 UTC = 0:00 w Polsce)
+   Przykład dla 10:00: cron: '0 8 * * *' (8:00 UTC = 10:00 w Polsce)
+
+Wyłącz konkretny sport:
+   Edytuj: .github/workflows/midnight-auto-scraping.yml
+   Usuń cały job (np. sekcję "tennis:")
+
+Zmień email:
+   Edytuj: .github/workflows/midnight-auto-scraping.yml
+   Zmień: --to twoj@email.com (dla każdego sportu osobno)
+
+Test pojedynczego sportu:
+   Actions → wybierz sport (np. 🏐 Volleyball Manual)
+   Run workflow
+
+═══════════════════════════════════════════════════════════════════
+❓ PYTANIA / PROBLEMY?
+═══════════════════════════════════════════════════════════════════
+
+Problem: Email nie przychodzi
+➜ Sprawdź SPAM
+➜ Zobacz logi w Actions
+➜ Sprawdź czy EMAIL_PASSWORD secret jest dodany
+
+Problem: Workflow nie działa
+➜ Actions → Enable workflow
+➜ Sprawdź logi
+
+Problem: Folder .github nie został wrzucony
+➜ Włącz widok ukrytych plików w Windows
+➜ Explorer → Widok → Ukryte elementy
+
+Więcej: GITHUB_ACTIONS_SETUP.md (sekcja Troubleshooting)
+
+═══════════════════════════════════════════════════════════════════
+
+ROZPOCZNIJ OD: Otwórz GITHUB_QUICK_START.md
+
+POWODZENIA! 🚀
+
+═══════════════════════════════════════════════════════════════════
+
