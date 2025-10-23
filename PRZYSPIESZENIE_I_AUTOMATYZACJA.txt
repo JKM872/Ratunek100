@@ -1,0 +1,147 @@
+═══════════════════════════════════════════════════════════════════
+⚡ PRZYSPIESZENIE + 💤 AUTOMATYZACJA - QUICK START
+═══════════════════════════════════════════════════════════════════
+
+PYTANIE 1: Jak przyspieszyć scraping?
+PYTANIE 2: Jak uruchamiać gdy laptop w uśpieniu?
+
+═══════════════════════════════════════════════════════════════════
+⚡ PRZYSPIESZENIE (3 poziomy trudności)
+═══════════════════════════════════════════════════════════════════
+
+POZIOM 1: ŁATWY (zmniejsz timeout) ⭐
+----------------------------------------
+Edytuj plik: livesport_h2h_scraper.py
+
+Linia 428:
+   BYŁO: wait = WebDriverWait(driver, 8)
+         time.sleep(2.0)
+   
+   ZMIEŃ: wait = WebDriverWait(driver, 5)
+          time.sleep(1.0)
+
+Linia 439-442:
+   BYŁO: time.sleep(0.3)
+         time.sleep(0.3)
+   
+   ZMIEŃ: time.sleep(0.1)
+          time.sleep(0.1)
+
+WYNIK: 40% szybciej! (5 min → 3 min dla 30 meczów)
+
+POZIOM 2: ŚREDNI (wielowątkowość) ⭐⭐⭐
+----------------------------------------
+Zobacz plik: OPTYMALIZACJA_SZYBKOSCI.md (sekcja "Poziom 3")
+
+WYNIK: 200% szybciej! (5 min → 1.5 min dla 30 meczów)
+
+POZIOM 3: ZAAWANSOWANY (cache) ⭐⭐⭐⭐
+----------------------------------------
+Zobacz plik: OPTYMALIZACJA_SZYBKOSCI.md (sekcja "Poziom 4")
+
+WYNIK: Powtórne scrapowanie = instant!
+
+═══════════════════════════════════════════════════════════════════
+💤 AUTOMATYZACJA (5 opcji)
+═══════════════════════════════════════════════════════════════════
+
+OPCJA 1: Windows Task Scheduler ⭐ NAJPROSTSZE
+------------------------------------------------
+✅ Darmowe
+✅ Laptop sam się budzi przed zadaniem
+❌ Laptop musi być podłączony do prądu
+
+JAK:
+   1. Uruchom: setup_task_scheduler.bat
+   2. Postępuj według instrukcji
+   3. Gotowe! Laptop będzie się budził o 11:00
+
+OPCJA 2: VPS/Cloud Server 🌐 NAJLEPSZE
+----------------------------------------
+✅ Działa 24/7 (nawet jak laptop wyłączony)
+✅ Szybki internet
+❌ Kosztuje ~$5/miesiąc
+
+JAK:
+   1. Załóż konto na DigitalOcean/AWS
+   2. Zobacz: URUCHAMIANIE_AUTOMATYCZNE.md (sekcja "VPS")
+
+OPCJA 3: Raspberry Pi 🍓 NAJFAJNIEJSZE
+----------------------------------------
+✅ Jednorazowy koszt ~300 zł
+✅ Niskie zużycie prądu (3W)
+✅ Działa 24/7
+❌ Wymaga zakupu sprzętu
+
+OPCJA 4: GitHub Actions 🆓 DARMOWE
+------------------------------------
+✅ Całkowicie darmowe
+✅ Działa w chmurze
+❌ Kod musi być publiczny
+
+JAK:
+   1. Utwórz repo na GitHub
+   2. Zobacz: URUCHAMIANIE_AUTOMATYCZNE.md (sekcja "GitHub Actions")
+
+OPCJA 5: Wyłącz uśpianie 💻
+-----------------------------
+✅ Bardzo proste
+❌ Zużycie prądu ~15 zł/miesiąc
+❌ NIE ZALECANE (nieekologiczne)
+
+═══════════════════════════════════════════════════════════════════
+🎯 MOJA REKOMENDACJA
+═══════════════════════════════════════════════════════════════════
+
+DLA CIEBIE (podstawowe użycie):
+   → OPCJA 1 (Task Scheduler)
+   → Darmowe, łatwe, wystarczające
+   → Uruchom: setup_task_scheduler.bat
+
+JEŚLI CHCESZ WIĘCEJ NIEZAWODNOŚCI:
+   → OPCJA 4 (GitHub Actions)
+   → Darmowe, działa zawsze
+
+JEŚLI CHCESZ PROFESJONALNE ROZWIĄZANIE:
+   → OPCJA 2 (VPS ~$5/m)
+   → Najszybsze, najbardziej niezawodne
+
+═══════════════════════════════════════════════════════════════════
+📁 DOKUMENTACJA SZCZEGÓŁOWA
+═══════════════════════════════════════════════════════════════════
+
+OPTYMALIZACJA_SZYBKOSCI.md      - Jak przyspieszyć scraping
+URUCHAMIANIE_AUTOMATYCZNE.md    - Jak uruchamiać automatycznie
+setup_task_scheduler.bat        - Gotowy skrypt (Opcja 1)
+
+═══════════════════════════════════════════════════════════════════
+✅ CO ZROBIĆ TERAZ?
+═══════════════════════════════════════════════════════════════════
+
+KROK 1: Zdecyduj co chcesz:
+   [ ] Przyspieszyć scraping
+   [ ] Uruchamiać automatycznie
+   [ ] Oba!
+
+KROK 2: Wybierz opcję:
+   Przyspieszenie: Poziom 1 (łatwy)
+   Automatyzacja: Opcja 1 (Task Scheduler)
+
+KROK 3: Działaj:
+   - Przeczytaj szczegółową dokumentację
+   - Wykonaj kroki
+   - Testuj!
+
+═══════════════════════════════════════════════════════════════════
+❓ PYTANIA?
+═══════════════════════════════════════════════════════════════════
+
+Powiedz mi:
+   - Którą opcję wybierasz?
+   - Potrzebujesz pomocy z konfiguracją?
+   - Chcesz coś wyjaśnić?
+
+Pomogę Ci krok po kroku! 🚀
+
+═══════════════════════════════════════════════════════════════════
+

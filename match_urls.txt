@@ -1,0 +1,64 @@
+# ============================================
+# Przykładowy plik z URLami meczów
+# ============================================
+# Jeden URL na linię, linie zaczynające się od # są ignorowane
+#
+# Jak zdobyć URLe:
+# 1. Wejdź na https://www.livesport.com/pl/
+# 2. Wybierz interesujący sport (piłka nożna, koszykówka, etc.)
+# 3. Kliknij na konkretny mecz
+# 4. Skopiuj URL z paska przeglądarki
+# 5. Wklej poniżej (jeden URL na linię)
+#
+# ============================================
+
+# PIŁKA NOŻNA (Football/Soccer)
+# ============================================
+# Ekstraklasa
+# https://www.livesport.com/pl/pilka-nozna/polska/ekstraklasa/legia-warszawa-lech-poznan/...
+
+# Premier League
+# https://www.livesport.com/pl/pilka-nozna/anglia/premier-league/manchester-united-liverpool/...
+
+# La Liga
+# https://www.livesport.com/pl/pilka-nozna/hiszpania/laliga/real-madryt-barcelona/...
+
+# Bundesliga
+# https://www.livesport.com/pl/pilka-nozna/niemcy/bundesliga/bayern-monachium-borussia-dortmund/...
+
+
+# KOSZYKÓWKA (Basketball)
+# ============================================
+# NBA
+# https://www.livesport.com/pl/koszykowka/usa/nba/los-angeles-lakers-boston-celtics/...
+
+# Euroliga
+# https://www.livesport.com/pl/koszykowka/europa/euroliga/...
+
+
+# SIATKÓWKA (Volleyball)
+# ============================================
+# PlusLiga
+# https://www.livesport.com/pl/siatkowka/polska/plusliga/...
+
+
+# PIŁKA RĘCZNA (Handball)
+# ============================================
+# PGNiG Superliga
+# https://www.livesport.com/pl/pilka-reczna/polska/superliga/...
+
+
+# RUGBY
+# ============================================
+# Premiership
+# https://www.livesport.com/pl/rugby-union/anglia/premiership/...
+
+
+# HOKEJ (Ice Hockey)
+# ============================================
+# NHL
+# https://www.livesport.com/pl/hokej/usa/nhl/...
+
+# KHL
+# https://www.livesport.com/pl/hokej/rosja/khl/...
+

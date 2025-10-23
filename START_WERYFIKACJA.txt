@@ -1,0 +1,111 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║  🎯 WERYFIKACJA WYNIKÓW - START TUTAJ                       ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+System weryfikacji automatycznie sprawdza trafność twoich prognoz
+i wysyła szczegółowy raport z statystykami!
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🚀 NAJPROSTSZY SPOSÓB                                      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+Następnego dnia po scrapingu uruchom:
+
+   > verify_yesterday.bat
+
+Gotowe! Raport przyjdzie na email i zapisze się jako HTML.
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  📋 INNE OPCJE                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+1. WERYFIKUJ KONKRETNĄ DATĘ (z emailem):
+   > weryfikuj_date.bat
+   (zapyta cię o datę)
+
+2. WERYFIKUJ KONKRETNĄ DATĘ (bez emaila, otwiera HTML):
+   > weryfikuj_bez_email.bat
+   (zapyta cię o datę, automatycznie otworzy raport)
+
+3. MANUALNIE (zaawansowane):
+   > python verify_predictions.py --date 2025-10-23 --headless --send-email --to jakub.majka.zg@gmail.com --from-email jakub.majka.zg@gmail.com --password "vurb tcai zaaq itjx"
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  📊 CO DOSTANIESZ?                                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+✅ Trafność ogólna (np. 66.7%)
+✅ Trafność oddzielnie dla tenisa i sportów drużynowych
+✅ ROI - gdybyś grał kursy, ile zarobiłbyś/straciłbyś
+✅ Top 5 najlepszych typów
+✅ Top 5 najgorszych typów
+✅ Szczegółowa lista wszystkich meczów
+✅ Raport HTML (pięknie sformatowany)
+✅ Raport email (automatycznie wysłany)
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  💡 WSKAZÓWKI                                               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+🕐 KIEDY WERYFIKOWAĆ?
+   - Następnego dnia rano (daj meczom czas się zakończyć)
+   - Lub wieczorem tego samego dnia (dla meczów z rana/południa)
+
+📁 GDZIE SĄ RAPORTY?
+   - outputs/verification_report_2025-10-23.html
+   - Możesz je otworzyć w przeglądarce (Chrome, Firefox, Edge)
+
+❓ CO JEŚLI MECZ SIĘ JESZCZE NIE SKOŃCZYŁ?
+   - Zobaczysz: ⏳ Mecz jeszcze się nie zakończył
+   - Po prostu uruchom weryfikację ponownie później
+
+✅ JAKA TRAFNOŚĆ JEST DOBRA?
+   - 50% = przypadek
+   - 60% = bardzo dobrze
+   - 65%+ = profesjonalny poziom
+
+💰 CO OZNACZA ROI?
+   - +15% = zysk 15%
+   - -5% = strata 5%
+   - To tylko informacja, nie zachęta do hazardu!
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  📚 WIĘCEJ INFORMACJI                                       ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+JAK_WERYFIKOWAC_WYNIKI.txt    - Szczegółowy przewodnik
+PRZYKŁAD_WERYFIKACJI.txt       - Przykładowy workflow
+VERIFICATION_GUIDE.md          - Dokumentacja techniczna (EN)
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🎯 PRZYKŁAD UŻYCIA                                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+PONIEDZIAŁEK:
+  > run_all_sports_away_email.bat
+  (15 meczów wysłane na email)
+
+WTOREK:
+  > verify_yesterday.bat
+  
+  WYNIK:
+  📧 Raport Weryfikacji - 2025-10-21 (10/15 = 66.7%)
+  ✅ Trafność: 66.7%
+  💰 ROI: +12.3% (+185 PLN)
+  
+  🎉 System działa!
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ⚡ SZYBKI START                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+1. Uruchom scraping (np. dzisiaj)
+2. Poczekaj do następnego dnia
+3. Uruchom: verify_yesterday.bat
+4. Sprawdź email lub otwórz HTML
+5. Gotowe! 🎉
+
+Powodzenia! 🍀
+

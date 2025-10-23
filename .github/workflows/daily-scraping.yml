@@ -1,0 +1,72 @@
+name: Daily Volleyball Scraping
+
+on:
+  schedule:
+    # Codziennie o 09:00 UTC = 11:00 w Polsce (UTC+2)
+    - cron: '0 9 * * *'
+  
+  # Możliwość ręcznego uruchomienia (zakładka Actions na GitHub)
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Max 30 minut na całe zadanie
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'  # Cache zależności dla szybszego działania
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+        
+        # Sprawdź wersje
+        chromium-browser --version
+        chromedriver --version
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🏐 Run Volleyball Scraping
+      run: |
+        TODAY=$(date +%Y-%m-%d)
+        echo "🗓️ Scraping dla daty: $TODAY"
+        
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports volleyball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        # Zmienne środowiskowe dla Selenium
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload outputs (jeśli są)
+      if: always()  # Uploaduj nawet jeśli scraping się nie powiódł
+      uses: actions/upload-artifact@v3
+      with:
+        name: scraping-results-${{ github.run_number }}
+        path: outputs/*.csv
+        if-no-files-found: ignore
+        retention-days: 30  # Przechowuj przez 30 dni
+    
+    - name: ✅ Job completed
+      if: success()
+      run: |
+        echo "✅ Scraping zakończony pomyślnie!"
+        echo "📧 Email wysłany do jakub.majka.zg@gmail.com"
+

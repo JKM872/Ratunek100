@@ -1,0 +1,73 @@
+name: All Sports Scraping (Manual)
+
+on:
+  # Tylko ręczne uruchomienie
+  workflow_dispatch:
+    inputs:
+      sports:
+        description: 'Sports to scrape (space-separated)'
+        required: false
+        default: 'volleyball basketball handball'
+      date:
+        description: 'Date (YYYY-MM-DD) or leave empty for today'
+        required: false
+        default: ''
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # Więcej czasu dla wielu sportów
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: ⚽ Run Multi-Sport Scraping
+      run: |
+        # Użyj podanej daty lub dzisiejszej
+        if [ -z "${{ github.event.inputs.date }}" ]; then
+          DATE=$(date +%Y-%m-%d)
+        else
+          DATE="${{ github.event.inputs.date }}"
+        fi
+        
+        echo "🗓️ Scraping dla daty: $DATE"
+        echo "🏆 Sporty: ${{ github.event.inputs.sports }}"
+        
+        python scrape_and_notify.py \
+          --date $DATE \
+          --sports ${{ github.event.inputs.sports }} \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort-by time
+      
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload outputs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: multi-sport-results-${{ github.run_number }}
+        path: outputs/*.csv
+        if-no-files-found: ignore
+        retention-days: 30
+

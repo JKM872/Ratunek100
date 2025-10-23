@@ -1,0 +1,77 @@
+═══════════════════════════════════════════════════════════════════
+🔧 SZYBKA NAPRAWA H2H - WERSJA 2.1 (OPTYMALIZACJA) - GOTOWE!
+═══════════════════════════════════════════════════════════════════
+
+✅ CO ZOSTAŁO NAPRAWIONE (WERSJA 2.1):
+
+1. ✅ Całkowicie przepisana funkcja parse_h2h_from_soup
+2. ✅ OPTYMALIZACJA: Usunięto zbędne logi (za dużo tekstu!)
+3. ✅ 5 poziomów fallback dla różnych selektorów CSS
+4. ✅ OPTYMALIZACJA: Zmniejszono timeout (10s → 8s)
+5. ✅ OPTYMALIZACJA: Uproszczono scrollowanie (3 kroki → 2)
+6. ✅ Explicit wait tylko na kluczowe elementy
+7. ✅ Pomocnicza funkcja _parse_h2h_rows (modularny kod)
+8. ✅ Parsowanie z regex dla nazwisk i wyników
+9. ✅ Specjalna obsługa siatkówki i koszykówki
+10. ✅ Zapis HTML do debug file gdy brak H2H
+
+═══════════════════════════════════════════════════════════════════
+🧪 JAK PRZETESTOWAĆ (2 sposoby):
+═══════════════════════════════════════════════════════════════════
+
+SPOSÓB 1 - SZYBKI TEST (pojedynczy mecz):
+------------------------------------------
+1. Uruchom: test_h2h_volleyball.bat
+2. Podaj URL meczu z Livesport
+3. Zobacz wyniki (H2H dane powinny się pojawić!)
+
+SPOSÓB 2 - PEŁNY TEST (twoje normalne użycie):
+------------------------------------------------
+Uruchom swoją komendę ponownie:
+
+python scrape_and_notify.py --date 2025-10-06 --sports volleyball ^
+  --to jakub.majka.zg@gmail.com --from-email jakub.majka.zg@gmail.com ^
+  --password "vurb tcai zaaq itjx" --headless --skip-no-odds ^
+  --only-form-advantage --sort time
+
+═══════════════════════════════════════════════════════════════════
+📊 OCZEKIWANE REZULTATY:
+═══════════════════════════════════════════════════════════════════
+
+ZAMIAST (stara wersja):
+   ⚠️  Brak H2H
+   ⚠️  Brak H2H
+
+POWINIENEŚ ZOBACZYĆ (wersja 2.1 - CZYTELNIEJ I SZYBCIEJ!):
+   ✅ KWALIFIKUJE! Zespół A vs Zespół B
+      H2H: 4/5 (80%)
+      Ostatnie H2H:
+        1. 21.03.25  Zespół A  82-70  Zespół B
+        2. 03.10.24  Zespół B  74-67  Zespół A
+        3. 12.01.24  Zespół A  91-73  Zespół B
+        4. 22.12.23  Zespół B  80-85  Zespół A
+        5. 03.05.23  Zespół B  66-77  Zespół A
+
+═══════════════════════════════════════════════════════════════════
+🔍 JEŚLI NADAL NIE DZIAŁA:
+═══════════════════════════════════════════════════════════════════
+
+1. Sprawdź plik: outputs/debug_no_h2h.html
+   (zawiera HTML strony gdy nie znaleziono H2H)
+
+2. Uruchom BEZ --headless aby zobaczyć przeglądarkę:
+   python scrape_and_notify.py ... (usuń --headless)
+
+3. Sprawdź czy strona Livesport się załadowała poprawnie
+
+═══════════════════════════════════════════════════════════════════
+📄 WIĘCEJ INFORMACJI:
+═══════════════════════════════════════════════════════════════════
+
+Zobacz: H2H_FIX_CHANGELOG.md
+Pełna dokumentacja wszystkich zmian i napraw.
+
+═══════════════════════════════════════════════════════════════════
+✅ GOTOWE - MOŻESZ TESTOWAĆ!
+═══════════════════════════════════════════════════════════════════
+

@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚽ Flashscore - Kwalifikujące się mecze</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .filters {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 15px;
+        }
+
+        .filters input,
+        .filters select {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .filters input:focus,
+        .filters select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filters button {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filters button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .filters button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .matches-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .match-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .match-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .match-header {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+        }
+
+        .match-time {
+            display: inline-block;
+            background: #FF5722;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .match-teams {
+            font-size: 20px;
+            color: #333;
+        }
+
+        .match-teams strong {
+            color: #667eea;
+        }
+
+        .match-body {
+            padding: 20px;
+        }
+
+        .match-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .odds-box {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .odds-box .label {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .odds-values {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .odd {
+            background: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .form-display {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .form-item {
+            font-size: 24px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .badge.tennis {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge.team {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .view-link {
+            display: block;
+            text-align: center;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .view-link:hover {
+            background: #5568d3;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: white;
+            font-size: 20px;
+        }
+
+        .loading:after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .match-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚽ Kwalifikujące się mecze</h1>
+            <p>Analiza H2H + forma + kursy bukmacherskie</p>
+        </header>
+
+        <div class="filters">
+            <input type="date" id="dateInput" />
+            <select id="sportSelect">
+                <option value="">Wszystkie sporty</option>
+            </select>
+            <select id="sortSelect">
+                <option value="time">⏰ Według godziny</option>
+                <option value="wins">📊 Według wygranych</option>
+                <option value="team">🔤 Alfabetycznie</option>
+            </select>
+            <button onclick="loadMatches()">🔍 Szukaj</button>
+        </div>
+
+        <div id="status"></div>
+        <div id="matches" class="matches-grid"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Inicjalizacja
+        document.addEventListener('DOMContentLoaded', () => {
+            // Ustaw dzisiejszą datę
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('dateInput').value = today;
+
+            // Załaduj sporty
+            loadSports();
+        });
+
+        // Załaduj dostępne sporty
+        async function loadSports() {
+            try {
+                const response = await fetch(`${API_BASE}/sports`);
+                const data = await response.json();
+                
+                const select = document.getElementById('sportSelect');
+                data.sports.forEach(sport => {
+                    const option = document.createElement('option');
+                    option.value = sport.id;
+                    option.textContent = `${sport.icon} ${sport.name}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                showStatus('Błąd ładowania sportów: ' + error.message, 'error');
+            }
+        }
+
+        // Załaduj mecze
+        async function loadMatches() {
+            const date = document.getElementById('dateInput').value;
+            const sport = document.getElementById('sportSelect').value;
+            const sort = document.getElementById('sortSelect').value;
+
+            showStatus('Ładowanie meczów...', 'info');
+
+            try {
+                let url = `${API_BASE}/matches?date=${date}&sort=${sort}`;
+                if (sport) url += `&sport=${sport}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayMatches(data.matches);
+                    showStatus(`✅ Znaleziono ${data.qualified_count} kwalifikujących się meczów`, 'success');
+                } else {
+                    showStatus('❌ ' + data.error, 'error');
+                    document.getElementById('matches').innerHTML = '';
+                }
+            } catch (error) {
+                showStatus('❌ Błąd połączenia: ' + error.message, 'error');
+                document.getElementById('matches').innerHTML = '';
+            }
+        }
+
+        // Wyświetl mecze
+        function displayMatches(matches) {
+            const container = document.getElementById('matches');
+            
+            if (matches.length === 0) {
+                container.innerHTML = '<div class="loading">Brak meczów spełniających kryteria</div>';
+                return;
+            }
+
+            container.innerHTML = matches.map(match => createMatchCard(match)).join('');
+        }
+
+        // Stwórz kartę meczu
+        function createMatchCard(match) {
+            const badge = match.is_tennis 
+                ? '<span class="badge tennis">🎾 TENIS</span>'
+                : '<span class="badge team">⚽ DRUŻYNOWE</span>';
+
+            const stats = match.is_tennis
+                ? `
+                    <div class="stat-box">
+                        <div class="stat-label">Advanced Score</div>
+                        <div class="stat-value">${match.advanced_score?.toFixed(1) || 'N/A'}/100</div>
+                    </div>
+                    ${match.favorite ? `
+                        <div class="stat-box">
+                            <div class="stat-label">Faworytem</div>
+                            <div class="stat-value">${match.favorite === 'player_a' ? match.home_team : match.away_team}</div>
+                        </div>
+                    ` : ''}
+                `
+                : `
+                    <div class="stat-box">
+                        <div class="stat-label">H2H (ostatnie mecze)</div>
+                        <div class="stat-value">${match.home_wins}/${match.h2h_count} ${match.win_rate ? `(${(match.win_rate * 100).toFixed(0)}%)` : ''}</div>
+                    </div>
+                    ${match.form_advantage ? `
+                        <div class="stat-box" style="border-left-color: #FF5722;">
+                            <div class="stat-label">Przewaga</div>
+                            <div class="stat-value">🔥 Forma!</div>
+                        </div>
+                    ` : ''}
+                `;
+
+            const odds = (match.home_odds && match.away_odds) ? `
+                <div class="odds-box">
+                    <div class="label">🎲 Kursy bukmacherskie</div>
+                    <div class="odds-values">
+                        <div class="odd">${match.home_odds.toFixed(2)}</div>
+                        <div class="odd">${match.away_odds.toFixed(2)}</div>
+                    </div>
+                </div>
+            ` : '';
+
+            const form = match.home_form_overall ? `
+                <div class="stat-box" style="grid-column: 1/-1;">
+                    <div class="stat-label">📊 Forma (ostatnie 5 meczów)</div>
+                    <div style="display: flex; justify-content: space-around; margin-top: 10px;">
+                        <div>
+                            <strong>🏠 ${match.home_team}:</strong>
+                            <div class="form-display">${formatForm(match.home_form_overall)}</div>
+                        </div>
+                        <div>
+                            <strong>✈️ ${match.away_team}:</strong>
+                            <div class="form-display">${formatForm(match.away_form_overall)}</div>
+                        </div>
+                    </div>
+                </div>
+            ` : '';
+
+            return `
+                <div class="match-card">
+                    <div class="match-header">
+                        <div class="match-time">${match.match_time || 'Brak danych'}</div>
+                        <div class="match-teams">
+                            <strong>${match.home_team}</strong> vs ${match.away_team}
+                            ${badge}
+                        </div>
+                    </div>
+                    <div class="match-body">
+                        <div class="match-stats">
+                            ${stats}
+                            ${form}
+                        </div>
+                        ${odds}
+                        <a href="${match.match_url}" target="_blank" class="view-link">
+                            Zobacz szczegóły na Livesport →
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Formatuj formę
+        function formatForm(form) {
+            if (!Array.isArray(form)) return 'N/A';
+            
+            const emoji = {
+                'W': '✅',
+                'L': '❌',
+                'D': '🟡'
+            };
+            
+            return form.map(r => `<span class="form-item">${emoji[r] || r}</span>`).join('');
+        }
+
+        // Pokaż status
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            } else {
+                status.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,113 @@
+================================================================================
+   🏆 LIVESPORT H2H SCRAPER - MULTI-SPORT EDITION 🏆
+================================================================================
+
+Witaj! To narzędzie znajdzie mecze gdzie gospodarze wygrali ≥2 razy 
+w ostatnich 5 bezpośrednich spotkaniach (H2H).
+
+================================================================================
+   ⚡ SZYBKI START (3 kroki)
+================================================================================
+
+KROK 1: Zainstaluj wymagania
+----------------------------
+    pip install -r requirements.txt
+
+
+KROK 2: Uruchom (wybierz JEDEN z poniższych)
+--------------------------------------------
+
+    A) Wszystkie sporty (Windows):
+       Kliknij dwukrotnie: run_all_sports.bat
+       (Pamiętaj edytować datę w pliku!)
+
+    B) Tylko piłka (Windows):
+       Kliknij dwukrotnie: run_football_only.bat
+
+    C) Linia komend (wszystkie systemy):
+       python livesport_h2h_scraper.py --mode auto --date 2025-10-05 --sports football --headless
+
+
+KROK 3: Sprawdź wyniki
+-----------------------
+    Otwórz: outputs/livesport_h2h_2025-10-05.csv
+    W Excelu: zastosuj filtr na kolumnie "qualifies" = TRUE
+
+
+================================================================================
+   📚 DOKUMENTACJA
+================================================================================
+
+QUICKSTART.md      → Szybki start w 5 minut (5 przykładów)
+README.md          → Pełna dokumentacja 
+FAQ.md             → Pytania i odpowiedzi
+EXAMPLE_OUTPUT.md  → Jak wyglądają wyniki
+
+
+================================================================================
+   ⚽ WSPIERANE SPORTY
+================================================================================
+
+--sports football      ⚽ Piłka nożna
+--sports basketball    🏀 Koszykówka  
+--sports volleyball    🏐 Siatkówka
+--sports handball      🤾 Piłka ręczna
+--sports rugby         🏉 Rugby
+--sports hockey        🏒 Hokej
+
+Możesz podać wiele naraz!
+
+
+================================================================================
+   💡 NAJCZĘSTSZE KOMENDY
+================================================================================
+
+# Tylko piłka nożna na dzisiaj
+python livesport_h2h_scraper.py --mode auto --date 2025-10-05 --sports football --headless
+
+# Wszystkie sporty
+python livesport_h2h_scraper.py --mode auto --date 2025-10-05 --sports football basketball volleyball handball rugby hockey --headless
+
+# Z własnym plikiem URLi (najbardziej niezawodne!)
+python livesport_h2h_scraper.py --mode urls --date 2025-10-05 --input match_urls.txt --headless
+
+# Debug mode (zobacz przeglądarkę)
+python livesport_h2h_scraper.py --mode auto --date 2025-10-05 --sports football
+
+
+================================================================================
+   ⚠️  NAJCZĘSTSZE PROBLEMY
+================================================================================
+
+Problem: "Nie znaleziono meczów"
+Rozwiązanie: 
+  1. Uruchom bez --headless (usuń ten parametr)
+  2. Lub użyj trybu urls z ręcznymi linkami
+
+Problem: "Chromedriver error"
+Rozwiązanie: pip install --upgrade selenium webdriver-manager
+
+Problem: Polskie znaki źle się wyświetlają
+Rozwiązanie: Excel → Data → Z pliku tekstowego → UTF-8
+
+
+================================================================================
+   🎯 HELP
+================================================================================
+
+python livesport_h2h_scraper.py --help
+
+
+================================================================================
+   📞 WIĘCEJ POMOCY
+================================================================================
+
+1. Przeczytaj QUICKSTART.md
+2. Sprawdź FAQ.md
+3. Zobacz przykłady w EXAMPLE_OUTPUT.md
+
+
+================================================================================
+Gotowy? Uruchom jeden z przykładów powyżej! 🚀
+================================================================================
+

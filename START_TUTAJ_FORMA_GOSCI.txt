@@ -1,0 +1,54 @@
+╔══════════════════════════════════════════════════════════╗
+║  ✅ NAPRAWIONO: Forma Gości NA WYJEŹDZIE w Emailach     ║
+╚══════════════════════════════════════════════════════════╝
+
+📧 PROBLEM:
+   W emailach nie pokazywała się linia:
+   • Na wyjeździe: ❌ ❌ ✅ ❌ ✅
+
+🔧 ROZWIĄZANIE:
+   Naprawiono funkcję _extract_form_from_h2h_page()
+   - Teraz poprawnie rozpoznaje strony /h2h/na-wyjezdzie/
+   - Poprawnie przypisuje formę gości z pierwszej sekcji
+   - Dodano debug logging
+
+🧪 JAK PRZETESTOWAĆ:
+
+   1. SZYBKI TEST (3 mecze, z emailem):
+      
+      > test_h2h_email_format.bat
+      
+   2. PEŁNY TEST (cała siatkówka):
+      
+      > run_volleyball_away_email.bat
+
+📧 CO POWINIENEŚ ZOBACZYĆ W EMAILU:
+
+   📊 Analiza Formy (ostatnie 5 meczów):
+   
+   🏠 KAL Jumbos:
+      • Ogółem: ✅ ✅ ✅ ✅ ✅
+      • U siebie: ✅ ✅ ✅ ✅ ❌
+   
+   ✈️ Kepco:
+      • Ogółem: ❌ ❌ ❌ ❌ ✅
+      • Na wyjeździe: ❌ ❌ ❌ 🟡 ❌  ← TO TERAZ DZIAŁA!
+
+📝 SZCZEGÓŁY TECHNICZNE:
+   
+   Zobacz plik: NAPRAWA_FORMY_GOSCI.md
+
+💡 JEŚLI NADAL NIE DZIAŁA:
+
+   1. Sprawdź terminal - powinno być:
+      ✓ Forma gości NA WYJEŹDZIE: ['L', 'L', 'L', 'D', 'L']
+   
+   2. Uruchom z debugiem:
+      > test_h2h_quick.bat
+   
+   3. Jeśli problem się powtarza, daj znać!
+
+╔══════════════════════════════════════════════════════════╗
+║  Wersja: v6.2 | Data: 23.10.2025                        ║
+╚══════════════════════════════════════════════════════════╝
+

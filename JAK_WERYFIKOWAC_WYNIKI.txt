@@ -1,0 +1,173 @@
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 JAK WERYFIKOWAĆ WYNIKI - Przewodnik                     ║
+╚══════════════════════════════════════════════════════════════╝
+
+📋 SYSTEM WERYFIKACJI JUŻ ISTNIEJE I DZIAŁA!
+
+┌──────────────────────────────────────────────────────────────┐
+│  KROK 1: Uruchom scraping (np. dzisiaj)                     │
+└──────────────────────────────────────────────────────────────┘
+
+   > run_all_sports_away_email.bat
+   
+   LUB
+   
+   > python scrape_and_notify.py --date 2025-10-23 --sports volleyball football --to jakub.majka.zg@gmail.com --headless
+
+   📝 System automatycznie zapisze przewidywania do:
+      outputs/volleyball_football_2025-10-23_predictions.json
+
+┌──────────────────────────────────────────────────────────────┐
+│  KROK 2: Następnego dnia sprawdź wyniki                     │
+└──────────────────────────────────────────────────────────────┘
+
+   OPCJA A - WCZORAJSZE WYNIKI (automatycznie):
+   
+      > verify_yesterday.bat
+      
+      ✅ Automatycznie:
+         - Pobiera wczorajszą datę
+         - Sprawdza wyniki
+         - Wysyła raport na email
+         - Zapisuje raport HTML
+
+   OPCJA B - KONKRETNA DATA:
+   
+      > python verify_predictions.py --date 2025-10-23 --headless --send-email --to jakub.majka.zg@gmail.com --from-email jakub.majka.zg@gmail.com --password "vurb tcai zaaq itjx"
+
+   OPCJA C - BEZ EMAILA (tylko HTML):
+   
+      > python verify_predictions.py --date 2025-10-23 --headless
+
+┌──────────────────────────────────────────────────────────────┐
+│  KROK 3: Zobacz raport                                      │
+└──────────────────────────────────────────────────────────────┘
+
+   📂 Raport zapisany w:
+      outputs/verification_report_2025-10-23.html
+   
+   📧 I wysłany na email (jeśli użyto --send-email)
+
+╔══════════════════════════════════════════════════════════════╗
+║  📊 CO POKAZUJE RAPORT?                                      ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅ OGÓLNA TRAFNOŚĆ
+   Przykład: 67.5% (27/40 meczów)
+
+🎾 TRAFNOŚĆ TENIS
+   Przykład: 72.3% (15/20 meczów)
+
+⚽ TRAFNOŚĆ SPORTY DRUŻYNOWE
+   Przykład: 63.2% (12/20 meczów)
+
+💰 ROI (Return on Investment)
+   Przykład: +15.3% (+612 PLN przy grze po 100 PLN/mecz)
+   
+   ROI pokazuje czy gdybyś grał kursy, zarobiłbyś czy stracił.
+   > 0% = Zarabiasz
+   < 0% = Tracisz
+
+📈 TOP 5 NAJLEPSZYCH TYPÓW
+   Mecze które wygrały z najwyższymi kursami
+
+📉 TOP 5 NAJGORSZYCH TYPÓW
+   Mecze które przegrały
+
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 PRZYKŁAD WYNIKU W TERMINALU                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+======================================================================
+🎯 WERYFIKACJA PRZEWIDYWAŃ - 2025-10-23
+======================================================================
+
+[1/15] KAL Jumbos vs Kepco
+   ✅ 3-1 | Wynik: home
+
+[2/15] Team A vs Team B
+   ❌ 1-3 | Wynik: away
+
+[3/15] Player X vs Player Y
+   ✅ 2-0 | Wynik: home
+
+...
+
+✅ Raport zapisany: outputs/verification_report_2025-10-23.html
+
+======================================================================
+🎯 PODSUMOWANIE WERYFIKACJI
+======================================================================
+📅 Data: 2025-10-23
+📊 Mecze zakończone: 12/15
+✅ Trafne: 8 (66.7%)
+❌ Nietrafne: 4 (33.3%)
+🎾 Tenis: 5/7 (71.4%)
+⚽ Drużynowe: 3/5 (60.0%)
+======================================================================
+
+╔══════════════════════════════════════════════════════════════╗
+║  💡 WSKAZÓWKI                                                ║
+╚══════════════════════════════════════════════════════════════╝
+
+1️⃣ Weryfikuj NASTĘPNEGO DNIA (daj meczom czas się zakończyć)
+
+2️⃣ Jeśli mecz jeszcze się nie skończył, zobaczysz:
+   ⏳ Mecz jeszcze się nie zakończył
+
+3️⃣ Możesz uruchomić weryfikację KILKA RAZY dla tej samej daty
+   (np. rano tylko część meczów, wieczorem wszystkie)
+
+4️⃣ Raport HTML możesz otworzyć w przeglądarce - jest ładnie sformatowany!
+
+╔══════════════════════════════════════════════════════════════╗
+║  🔧 AUTOMATYZACJA                                            ║
+╚══════════════════════════════════════════════════════════════╝
+
+Możesz ustawić w Windows Task Scheduler:
+
+1. Codziennie o 8:00 rano → scraping na dzisiaj
+2. Codziennie o 23:00 wieczorem → weryfikacja wczorajszych wyników
+
+Zobacz: TASK_SCHEDULER_SETUP.md
+
+╔══════════════════════════════════════════════════════════════╗
+║  ❓ PYTANIA                                                  ║
+╚══════════════════════════════════════════════════════════════╝
+
+Q: Co jeśli nie ma pliku predictions.json?
+A: Sprawdź czy scraping zapisał wyniki. Plik powinien być w outputs/
+   Jeśli go nie ma, oznacza to że żaden mecz się nie zakwalifikował.
+
+Q: Co oznacza ROI?
+A: Return on Investment - pokazuje czy gdybyś grał kursy, zarobiłbyś.
+   +15% = zysk 15%
+   -10% = strata 10%
+
+Q: Czy mogę weryfikować starsze daty?
+A: TAK! python verify_predictions.py --date 2025-10-01 --headless
+
+Q: Raport jest po angielsku czy polsku?
+A: HTML raport jest po polsku z emoji, bardzo czytelny!
+
+╔══════════════════════════════════════════════════════════════╗
+║  📁 PLIKI                                                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+verify_predictions.py      - Główny skrypt weryfikacji
+verify_yesterday.bat       - Weryfikacja wczorajszych typów (NAJŁATWIEJSZE)
+VERIFICATION_GUIDE.md      - Szczegółowy przewodnik (angielski)
+JAK_WERYFIKOWAC_WYNIKI.txt - Ten plik (polski)
+
+╔══════════════════════════════════════════════════════════════╗
+║  🚀 SZYBKI START                                             ║
+╚══════════════════════════════════════════════════════════════╝
+
+Dziś:
+  > run_all_sports_away_email.bat
+
+Jutro:
+  > verify_yesterday.bat
+
+Gotowe! 🎉
+

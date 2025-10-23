@@ -1,0 +1,144 @@
+═══════════════════════════════════════════════════════════════════
+🚀 JAK WRZUCIĆ KOD NA GITHUB - 2 OPCJE
+═══════════════════════════════════════════════════════════════════
+
+WYBRAŁEŚ: GitHub Actions (DARMOWE z Student Pack!)
+
+MASZ 2 OPCJE:
+
+═══════════════════════════════════════════════════════════════════
+OPCJA 1: Przez przeglądarkę ⭐ ŁATWIEJSZE (5 min)
+═══════════════════════════════════════════════════════════════════
+
+KROK 1: Stwórz repo (2 min)
+-----------------------------
+1. Wejdź: https://github.com/JKM2828
+2. Kliknij: New (zielony przycisk)
+3. Wypełnij:
+   - Repository name: volleyball-scraper
+   - Description: Automatyczny scraper siatkówki
+   - ✅ Private (WAŻNE!)
+   - ✅ Add a README file
+4. Create repository
+
+KROK 2: Upload plików (3 min)
+------------------------------
+1. W repo kliknij: Add file → Upload files
+2. Otwórz folder: C:\Users\jakub\Downloads\Ratowanie\
+3. ZAZNACZ WSZYSTKIE pliki (Ctrl+A)
+4. PRZECIĄGNIJ na stronę GitHub
+   
+   ⚠️ WAŻNE: Upewnij się że folder .github został wrzucony!
+   (może być ukryty - włącz widok ukrytych plików)
+
+5. Commit message: "Initial commit"
+6. Commit changes
+
+KROK 3: Dodaj hasło email (1 min)
+----------------------------------
+1. Settings → Secrets and variables → Actions
+2. New repository secret
+3. Wypełnij:
+   Name: EMAIL_PASSWORD
+   Secret: vurb tcai zaaq itjx
+4. Add secret
+
+KROK 4: TEST! 🎯
+----------------
+1. Actions (zakładka na górze)
+2. All Sports Scraping (Manual)
+3. Run workflow → Run workflow
+4. Poczekaj 3-5 min
+5. Sprawdź email!
+
+✅ GOTOWE!
+
+═══════════════════════════════════════════════════════════════════
+OPCJA 2: Przez git 💻 ZAAWANSOWANE (5 min)
+═══════════════════════════════════════════════════════════════════
+
+KROK 1: Stwórz repo (jak w Opcji 1)
+
+KROK 2: Uruchom skrypt
+-----------------------
+Kliknij 2x: upload_to_github.bat
+
+LUB ręcznie w PowerShell:
+-----------------------
+cd C:\Users\jakub\Downloads\Ratowanie
+
+git init
+git add .
+git commit -m "Initial commit - volleyball scraper"
+git branch -M main
+git remote add origin https://github.com/JKM2828/volleyball-scraper.git
+git push -u origin main
+
+KROK 3: Dodaj hasło email (jak w Opcji 1)
+
+KROK 4: TEST! (jak w Opcji 1)
+
+═══════════════════════════════════════════════════════════════════
+⚠️ NAJCZĘSTSZE PROBLEMY
+═══════════════════════════════════════════════════════════════════
+
+Problem: Folder .github nie został wrzucony
+Rozwiązanie:
+  - Windows ukrywa foldery zaczynające się od kropki
+  - Włącz: Widok → Ukryte elementy
+  - Upewnij się że .github jest zaznaczony
+
+Problem: Git prosi o login/hasło
+Rozwiązanie:
+  - Username: JKM2828
+  - Password: Twoje hasło GitHub
+  - LUB: Użyj Personal Access Token (bezpieczniejsze)
+    1. GitHub → Settings → Developer settings
+    2. Personal access tokens → Tokens (classic)
+    3. Generate new token
+    4. Scopes: repo (wszystkie)
+    5. Użyj token zamiast hasła
+
+Problem: Email nie przychodzi
+Rozwiązanie:
+  - Sprawdź SPAM
+  - Sprawdź logi w Actions
+  - Upewnij się że EMAIL_PASSWORD secret jest dodany
+
+═══════════════════════════════════════════════════════════════════
+📚 DOKUMENTACJA
+═══════════════════════════════════════════════════════════════════
+
+GITHUB_QUICK_START.md       - Szybki start (5 min)
+GITHUB_ACTIONS_SETUP.md     - Pełna instrukcja
+README_GITHUB.md            - Informacje o projekcie
+
+═══════════════════════════════════════════════════════════════════
+✅ CO DOSTANIESZ?
+═══════════════════════════════════════════════════════════════════
+
+✅ Scraping 24/7 bez laptopa
+✅ Codziennie o 11:00 automatycznie
+✅ Email z wynikami
+✅ 7 GB RAM (Heroku miał tylko 512 MB!)
+✅ Całkowicie DARMOWE (GitHub Student Pack)
+✅ 3000 minut/miesiąc (wystarczy na 3 miesiące!)
+
+vs Heroku Basic ($13/m):
+❌ 512 MB RAM (za mało!)
+❌ Zawiesza się przy 30 meczach
+❌ $13/miesiąc
+
+═══════════════════════════════════════════════════════════════════
+🎯 POLECANA OPCJA
+═══════════════════════════════════════════════════════════════════
+
+→ OPCJA 1 (przez przeglądarkę)
+  - Najprostsza
+  - Nie wymaga git
+  - Działa na 100%
+
+═══════════════════════════════════════════════════════════════════
+
+POWODZENIA! 🚀
+
