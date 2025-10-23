@@ -1,0 +1,134 @@
+═══════════════════════════════════════════════════════════════════
+💰 KURSY BUKMACHERSKIE W EMAILACH - INFO
+═══════════════════════════════════════════════════════════════════
+
+✅ CO ZOSTAŁO POPRAWIONE:
+------------------------
+
+Problem: Kursy pokazywały "nan" (brak danych) w emailach
+Rozwiązanie: Dodano dynamiczny scraping kursów używając Selenium
+
+═══════════════════════════════════════════════════════════════════
+🔧 CO ZOSTAŁO ZMIENIONE:
+═══════════════════════════════════════════════════════════════════
+
+1. ✅ Nowa funkcja: extract_betting_odds_with_selenium()
+   - Używa Selenium do dynamicznego ładowania kursów
+   - Czeka na załadowanie elementów (max 3 sekundy)
+   - Filtruje wartości typowe dla kursów (1.01 - 50.00)
+
+2. ✅ 3-stopniowe pobieranie kursów:
+   - METODA 1: Czeka na załadowanie kontenera z kursami
+   - METODA 2: Szuka kursów w różnych miejscach na stronie
+   - METODA 3: Fallback do starej metody (BeautifulSoup)
+
+3. ✅ Inteligentne filtrowanie:
+   - Rozpoznaje formaty: 1X2 (3 kursy) lub H2H (2 kursy)
+   - Dla 1X2: bierze kurs 1 (home) i kurs 2 (away)
+   - Dla H2H: bierze pierwszy i drugi kurs
+
+4. ✅ Dodano import json
+   - Potrzebny dla parsowania skryptów JSON-LD
+
+═══════════════════════════════════════════════════════════════════
+📧 JAK TO WYGLĄDA W EMAILU:
+═══════════════════════════════════════════════════════════════════
+
+PRZED poprawką:
+   ⚠️ Kursy: Uni Opole K | nan | Nowy Dwór Mazowiecki K | nan
+
+PO poprawce (jeśli kursy są dostępne):
+   💰 Kursy: Uni Opole K | 1.85 | Nowy Dwór Mazowiecki K | 2.10
+
+UWAGA: Jeśli mecz nie ma kursów na Livesport, nadal będzie "nan"
+       (to jest normalne - nie wszystkie mecze mają kursy)
+
+═══════════════════════════════════════════════════════════════════
+⚠️ WAŻNE INFORMACJE:
+═══════════════════════════════════════════════════════════════════
+
+1. 🔒 Kursy są TYLKO informacją dodatkową
+   - NIE wpływają na scoring
+   - NIE wpływają na kwalifikację meczów
+   - Są dodawane na końcu dla ciekawości
+
+2. ⏱️ Scraping trwa ~0.5-3 sekundy dłużej na mecz
+   - Ze względu na czekanie na załadowanie kursów
+   - To jest akceptowalne dla lepszych wyników
+
+3. 📊 Nie wszystkie mecze mają kursy
+   - Niektóre ligi/turnieje nie mają kursów na Livesport
+   - Mecze za długo przed rozpoczęciem mogą nie mieć kursów
+   - To jest normalne - wtedy zobaczysz "nan"
+
+4. 🎯 Kursy są pobierane dla:
+   - Wszystkich sportów: football, basketball, volleyball, handball, hockey
+   - Tennis (osobna logika)
+
+═══════════════════════════════════════════════════════════════════
+🧪 JAK PRZETESTOWAĆ:
+═══════════════════════════════════════════════════════════════════
+
+1. Uruchom workflow na GitHubie (np. 🏐 Volleyball Manual)
+   https://github.com/JKM2828/volleyball-scraper/actions
+
+2. Sprawdź logi - powinieneś zobaczyć:
+   💰 Znaleziono kursy: 1.85 - 2.10
+
+3. Sprawdź email - kursy powinny być wyświetlone:
+   💰 Kursy: Team A | 1.85 | Team B | 2.10
+
+═══════════════════════════════════════════════════════════════════
+📝 TECHNICZNE SZCZEGÓŁY:
+═══════════════════════════════════════════════════════════════════
+
+Funkcja: extract_betting_odds_with_selenium()
+Lokalizacja: livesport_h2h_scraper.py, linia ~1007
+
+Używane selektory CSS:
+- [class*='odds']
+- [class*='Odds']
+- [class*='bookmaker']
+- [class*='Bookmaker']
+
+Regex dla kursów:
+- \b(\d+\.\d{2})\b
+- Filtr: 1.01 <= kurs <= 50.00
+
+Timeout:
+- 3 sekundy na załadowanie kursów
+- 0.5 sekundy dodatkowe opóźnienie
+
+═══════════════════════════════════════════════════════════════════
+❓ FAQ:
+═══════════════════════════════════════════════════════════════════
+
+Q: Dlaczego niektóre mecze nadal mają "nan"?
+A: Bo na Livesport nie ma dla nich kursów. To jest normalne.
+
+Q: Czy kursy wpływają na wybór meczów?
+A: NIE! Kursy są tylko informacją dodatkową.
+
+Q: Czy mogę wyłączyć scraping kursów?
+A: Tak, ale wymaga to edycji kodu (komentarz linii 616 i 1625)
+
+Q: Czy kursy są zawsze aktualne?
+A: Tak, są pobierane w momencie scrapingu (na żywo)
+
+Q: Dlaczego scraping trwa dłużej?
+A: Bo czekamy na załadowanie kursów (max 3 sekundy/mecz)
+
+═══════════════════════════════════════════════════════════════════
+
+🎉 PODSUMOWANIE:
+===============
+
+✅ Kursy bukmacherskie są teraz pobierane dynamicznie
+✅ Większość meczów będzie miała kursy (jeśli są dostępne)
+✅ Email wygląda profesjonalniej
+✅ Scraping jest nadal szybki (~3 sekundy dłużej)
+
+Wszystko działa automatycznie! 🚀
+
+═══════════════════════════════════════════════════════════════════
+
