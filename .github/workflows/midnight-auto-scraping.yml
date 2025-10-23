@@ -47,7 +47,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort-by time
+          --sort time
       
       env:
         DISPLAY: ':99'
@@ -98,7 +98,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort-by time
+          --sort time
       
       env:
         DISPLAY: ':99'
@@ -149,7 +149,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort-by time
+          --sort time
       
       env:
         DISPLAY: ':99'
@@ -200,7 +200,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort-by time
+          --sort time
       
       env:
         DISPLAY: ':99'
@@ -251,7 +251,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort-by time
+          --sort time
       
       env:
         DISPLAY: ':99'
@@ -302,7 +302,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort-by time
+          --sort time
       
       env:
         DISPLAY: ':99'
