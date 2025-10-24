@@ -36,3 +36,5 @@ start outputs\verification_report_%DATE%.html
 
 pause
 
+
+

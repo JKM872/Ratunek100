@@ -16,7 +16,7 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # Więcej czasu dla wielu sportów
+    timeout-minutes: 360  # 6 godzin (maksimum GitHub Actions) dla 2500+ meczów
     
     steps:
     - name: 📥 Checkout code

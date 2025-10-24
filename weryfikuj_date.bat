@@ -33,3 +33,5 @@ echo Otwórz plik HTML w przeglądarce aby zobaczyć szczegóły!
 echo.
 pause
 
+
+

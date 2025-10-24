@@ -64,3 +64,5 @@ echo Wiecej informacji: URUCHAMIANIE_AUTOMATYCZNE.md
 echo.
 pause
 
+
+

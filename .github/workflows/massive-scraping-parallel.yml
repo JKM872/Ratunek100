@@ -1,0 +1,353 @@
+name: 🚀 Massive Scraping (2500+ Parallel)
+
+on:
+  # Tylko ręczne uruchomienie dla dużych zadań
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Data (YYYY-MM-DD) lub zostaw puste dla dzisiejszej'
+        required: false
+        default: ''
+      sports:
+        description: 'Sport (football, basketball, volleyball, etc.)'
+        required: true
+        default: 'football'
+
+jobs:
+  # JOB 1: Zbierz wszystkie linki
+  collect-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      total_matches: ${{ steps.count.outputs.total }}
+      batch1_count: ${{ steps.split.outputs.batch1 }}
+      batch2_count: ${{ steps.split.outputs.batch2 }}
+      batch3_count: ${{ steps.split.outputs.batch3 }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🔗 Zbierz linki do meczów
+      id: collect
+      run: |
+        if [ -z "${{ github.event.inputs.date }}" ]; then
+          DATE=$(date +%Y-%m-%d)
+        else
+          DATE="${{ github.event.inputs.date }}"
+        fi
+        
+        SPORT="${{ github.event.inputs.sports }}"
+        
+        echo "🔍 Zbieranie linków dla: $SPORT, data: $DATE"
+        
+        # Uruchom tylko zbieranie linków (bez scrapingu)
+        python collect_match_links.py --date $DATE --sports $SPORT --output match_urls.txt --headless
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Policz i podziel mecze
+      id: count
+      run: |
+        TOTAL=$(wc -l < match_urls.txt || echo "0")
+        echo "total=$TOTAL" >> $GITHUB_OUTPUT
+        echo "📊 Znaleziono $TOTAL meczów"
+    
+    - name: ✂️ Podziel na 3 batche (równolegle)
+      id: split
+      run: |
+        TOTAL=$(wc -l < match_urls.txt || echo "0")
+        BATCH_SIZE=$((TOTAL / 3 + 1))
+        
+        split -l $BATCH_SIZE match_urls.txt batch_
+        
+        mv batch_aa batch1_urls.txt || touch batch1_urls.txt
+        mv batch_ab batch2_urls.txt || touch batch2_urls.txt
+        mv batch_ac batch3_urls.txt || touch batch3_urls.txt
+        
+        B1=$(wc -l < batch1_urls.txt || echo "0")
+        B2=$(wc -l < batch2_urls.txt || echo "0")
+        B3=$(wc -l < batch3_urls.txt || echo "0")
+        
+        echo "batch1=$B1" >> $GITHUB_OUTPUT
+        echo "batch2=$B2" >> $GITHUB_OUTPUT
+        echo "batch3=$B3" >> $GITHUB_OUTPUT
+        
+        echo "📦 Batch 1: $B1 meczów"
+        echo "📦 Batch 2: $B2 meczów"
+        echo "📦 Batch 3: $B3 meczów"
+    
+    - name: 💾 Upload batches
+      uses: actions/upload-artifact@v4
+      with:
+        name: match-batches
+        path: |
+          batch1_urls.txt
+          batch2_urls.txt
+          batch3_urls.txt
+        retention-days: 1
+
+  # JOB 2: Przetwórz Batch 1 (równolegle)
+  scrape-batch1:
+    needs: collect-links
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 godziny na 1/3 meczów
+    if: needs.collect-links.outputs.batch1_count > 0
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 📥 Download batch
+      uses: actions/download-artifact@v4
+      with:
+        name: match-batches
+    
+    - name: 🔄 Scrape Batch 1
+      run: |
+        if [ -z "${{ github.event.inputs.date }}" ]; then
+          DATE=$(date +%Y-%m-%d)
+        else
+          DATE="${{ github.event.inputs.date }}"
+        fi
+        
+        SPORT="${{ github.event.inputs.sports }}"
+        
+        echo "🔄 Batch 1: Przetwarzanie ${{ needs.collect-links.outputs.batch1_count }} meczów"
+        
+        python livesport_h2h_scraper.py \
+          --mode urls \
+          --input batch1_urls.txt \
+          --date $DATE \
+          --headless \
+          --output-suffix "batch1_$SPORT"
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: results-batch1
+        path: outputs/*batch1*.csv
+        retention-days: 30
+
+  # JOB 3: Przetwórz Batch 2 (równolegle)
+  scrape-batch2:
+    needs: collect-links
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 godziny na 1/3 meczów
+    if: needs.collect-links.outputs.batch2_count > 0
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 📥 Download batch
+      uses: actions/download-artifact@v4
+      with:
+        name: match-batches
+    
+    - name: 🔄 Scrape Batch 2
+      run: |
+        if [ -z "${{ github.event.inputs.date }}" ]; then
+          DATE=$(date +%Y-%m-%d)
+        else
+          DATE="${{ github.event.inputs.date }}"
+        fi
+        
+        SPORT="${{ github.event.inputs.sports }}"
+        
+        echo "🔄 Batch 2: Przetwarzanie ${{ needs.collect-links.outputs.batch2_count }} meczów"
+        
+        python livesport_h2h_scraper.py \
+          --mode urls \
+          --input batch2_urls.txt \
+          --date $DATE \
+          --headless \
+          --output-suffix "batch2_$SPORT"
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: results-batch2
+        path: outputs/*batch2*.csv
+        retention-days: 30
+
+  # JOB 4: Przetwórz Batch 3 (równolegle)
+  scrape-batch3:
+    needs: collect-links
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 godziny na 1/3 meczów
+    if: needs.collect-links.outputs.batch3_count > 0
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 🌐 Install Chrome & ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+    
+    - name: 📦 Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 📥 Download batch
+      uses: actions/download-artifact@v4
+      with:
+        name: match-batches
+    
+    - name: 🔄 Scrape Batch 3
+      run: |
+        if [ -z "${{ github.event.inputs.date }}" ]; then
+          DATE=$(date +%Y-%m-%d)
+        else
+          DATE="${{ github.event.inputs.date }}"
+        fi
+        
+        SPORT="${{ github.event.inputs.sports }}"
+        
+        echo "🔄 Batch 3: Przetwarzanie ${{ needs.collect-links.outputs.batch3_count }} meczów"
+        
+        python livesport_h2h_scraper.py \
+          --mode urls \
+          --input batch3_urls.txt \
+          --date $DATE \
+          --headless \
+          --output-suffix "batch3_$SPORT"
+      env:
+        DISPLAY: ':99'
+    
+    - name: 📊 Upload results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: results-batch3
+        path: outputs/*batch3*.csv
+        retention-days: 30
+
+  # JOB 5: Połącz wyniki i wyślij email
+  merge-and-notify:
+    needs: [collect-links, scrape-batch1, scrape-batch2, scrape-batch3]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 📦 Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pandas
+    
+    - name: 📥 Download all results
+      uses: actions/download-artifact@v4
+      with:
+        path: all-results
+    
+    - name: 🔗 Połącz wyniki
+      run: |
+        python - <<EOF
+        import pandas as pd
+        import glob
+        import os
+        
+        # Znajdź wszystkie CSV z batch
+        csv_files = glob.glob('all-results/results-batch*/*.csv')
+        
+        if csv_files:
+            dfs = [pd.read_csv(f) for f in csv_files]
+            merged = pd.concat(dfs, ignore_index=True)
+            
+            # Zapisz połączone wyniki
+            os.makedirs('outputs', exist_ok=True)
+            merged.to_csv('outputs/merged_results.csv', index=False, encoding='utf-8-sig')
+            
+            print(f"✅ Połączono {len(csv_files)} plików")
+            print(f"📊 Łącznie {len(merged)} meczów")
+            print(f"🎯 Kwalifikujących: {merged['qualifies'].sum()}")
+        else:
+            print("⚠️ Brak wyników do połączenia")
+        EOF
+    
+    - name: 📊 Upload merged results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: merged-results-final
+        path: outputs/merged_results.csv
+        retention-days: 30
+    
+    - name: ✅ Summary
+      run: |
+        echo "🎉 Przetwarzanie zakończone!"
+        echo "📊 Wszystkie wyniki dostępne w artifacts"
+        echo "💡 Pobierz 'merged-results-final' aby dostać połączone dane"
+

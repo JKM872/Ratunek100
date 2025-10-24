@@ -94,3 +94,5 @@ W emailu powinieneś teraz zobaczyć:
 ## Wersja
 v6.2 - 23.10.2025
 
+
+

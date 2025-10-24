@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import json
+import gc  # Garbage collector dla zarządzania pamięcią
 from datetime import datetime
 from livesport_h2h_scraper import start_driver, get_match_links_from_day, process_match, process_match_tennis
 from email_notifier import send_email_notification
@@ -83,8 +84,17 @@ def scrape_and_send_email(
         
         rows = []
         qualifying_count = 0
-        RESTART_INTERVAL = 40  # Restart Chrome co 40 meczów (zmniejszone z 80 dla stabilności)
-        CHECKPOINT_INTERVAL = 30  # Zapisz checkpoint co 30 meczów (bezpieczeństwo danych)
+        
+        # KLUCZOWE: Na GitHub Actions używaj krótszych interwałów (ograniczone zasoby)
+        is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true'
+        if is_github_actions:
+            RESTART_INTERVAL = 25  # GitHub Actions: restart co 25 meczów (oszczędność RAM)
+            CHECKPOINT_INTERVAL = 15  # GitHub Actions: checkpoint co 15 meczów (częstsze zapisywanie)
+            print("🔧 Wykryto GitHub Actions - używam skróconych interwałów dla stabilności")
+            print(f"   └─ Restart: co {RESTART_INTERVAL} meczów | Checkpoint: co {CHECKPOINT_INTERVAL} meczów")
+        else:
+            RESTART_INTERVAL = 40  # Lokalnie: restart co 40 meczów
+            CHECKPOINT_INTERVAL = 30  # Lokalnie: checkpoint co 30 meczów
         
         # Przygotuj nazwę pliku
         sport_suffix = '_'.join(sports) if len(sports) <= 2 else 'multi'
@@ -212,16 +222,19 @@ def scrape_and_send_email(
                 print(f"   ✅ Przetworzone dane ({len(rows)} meczów) są bezpieczne w pamięci i na dysku!")
                 try:
                     driver.quit()
+                    # Wymuś garbage collection dla zwolnienia pamięci (ważne na GitHub Actions)
+                    gc.collect()
                     time.sleep(2)
                     driver = start_driver(headless=headless)
-                    print(f"   ✅ Przeglądarka zrestartowana! Kontynuuję od meczu {i+1}...\n")
+                    print(f"   ✅ Przeglądarka zrestartowana! Pamięć zwolniona! Kontynuuję od meczu {i+1}...\n")
                 except Exception as e:
                     print(f"   ⚠️  Błąd restartu: {e}")
+                    gc.collect()  # Wyczyść pamięć mimo błędu
                     driver = start_driver(headless=headless)
             
-            # Rate limiting
+            # Rate limiting (zoptymalizowany)
             elif i < len(urls):
-                time.sleep(1.5)
+                time.sleep(1.0)  # Zmniejszone z 1.5s na 1.0s
         
         # Zapisz finalne wyniki (plik już istnieje jeśli były checkpointy)
         print("\n💾 Zapisywanie finalnych wyników...")

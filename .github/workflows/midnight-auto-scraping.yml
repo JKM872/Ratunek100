@@ -2,9 +2,9 @@ name: Midnight Auto Scraping (All Sports)
 
 on:
   schedule:
-    # Codziennie o 23:00 UTC = 0:00 czasu warszawskiego (UTC+1)
-    # W letnim czasie (UTC+2) będzie to 1:00, ale lepiej zachować stałą godzinę
-    - cron: '0 23 * * *'
+    # Codziennie o 22:00 UTC = 00:00 czasu polskiego (UTC+2 latem)
+    # Zbiera mecze NA KOLEJNY DZIEŃ (np. o północy 25.10 zbiera na 25.10)
+    - cron: '0 22 * * *'
   
   # Możliwość ręcznego uruchomienia (zakładka Actions na GitHub)
   workflow_dispatch:
@@ -13,7 +13,7 @@ jobs:
   # ⚽ FOOTBALL
   football:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360  # 6 godzin (maksimum GitHub Actions) dla 2500+ meczów
     
     steps:
     - name: 📥 Checkout code
@@ -64,7 +64,7 @@ jobs:
   # 🏀 BASKETBALL
   basketball:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360  # 6 godzin (maksimum GitHub Actions) dla 2500+ meczów
     
     steps:
     - name: 📥 Checkout code
@@ -115,7 +115,7 @@ jobs:
   # 🤾 HANDBALL
   handball:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360  # 6 godzin (maksimum GitHub Actions) dla 2500+ meczów
     
     steps:
     - name: 📥 Checkout code
@@ -166,7 +166,7 @@ jobs:
   # 🏐 VOLLEYBALL
   volleyball:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360  # 6 godzin (maksimum GitHub Actions) dla 2500+ meczów
     
     steps:
     - name: 📥 Checkout code
@@ -217,7 +217,7 @@ jobs:
   # 🏒 HOCKEY
   hockey:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360  # 6 godzin (maksimum GitHub Actions) dla 2500+ meczów
     
     steps:
     - name: 📥 Checkout code
@@ -268,7 +268,7 @@ jobs:
   # 🎾 TENNIS
   tennis:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360  # 6 godzin (maksimum GitHub Actions) dla 2500+ meczów
     
     steps:
     - name: 📥 Checkout code

@@ -40,6 +40,7 @@ import os
 import csv
 import re
 import json
+import gc  # Garbage collector dla zarządzania pamięcią
 from datetime import datetime
 from typing import List, Dict, Optional
 
@@ -365,23 +366,23 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
     try:
         driver.get(h2h_url)
         
-        # OPTYMALIZACJA: Czekaj tylko na kluczowe elementy (max 8s)
+        # OPTYMALIZACJA: Czekaj tylko na kluczowe elementy (max 5s)
         try:
-            wait = WebDriverWait(driver, 8)
+            wait = WebDriverWait(driver, 5)  # Zmniejszone z 8s na 5s
             # Czekaj aż załaduje się JAKAKOLWIEK zawartość H2H
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[class*="h2h"], section[class*="h2h"]')))
         except TimeoutException:
             pass  # Kontynuuj mimo timeout
         
-        # Krótki dodatkowy czas na renderowanie (zredukowany z 5s)
-        time.sleep(2.0)
+        # Krótki dodatkowy czas na renderowanie (zredukowany z 2s na 1s)
+        time.sleep(1.0)
         
         # Scroll raz w dół i raz w górę (szybko)
         try:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(0.3)
+            time.sleep(0.15)  # Zmniejszone z 0.3s na 0.15s
             driver.execute_script("window.scrollTo(0, 0);")
-            time.sleep(0.3)
+            time.sleep(0.15)  # Zmniejszone z 0.3s na 0.15s
         except:
             pass
             
@@ -720,12 +721,12 @@ def _extract_form_from_h2h_page(url: str, driver: webdriver.Chrome, context: str
     
     try:
         driver.get(url)
-        time.sleep(3.0)  # Czas na załadowanie dynamicznych elementów
+        time.sleep(1.5)  # Zmniejszone z 3.0s na 1.5s - czas na załadowanie dynamicznych elementów
         
         # Scroll down to trigger lazy-loading content
         try:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1.0)
+            time.sleep(0.5)  # Zmniejszone z 1.0s na 0.5s
         except:
             pass
         
@@ -1018,33 +1019,37 @@ def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: Beautiful
         # METODA 1: Szukaj na stronie H2H w sekcji z meczem (górna część strony)
         # Najpierw spróbuj znaleźć kontener z kursami używając Selenium
         try:
-            # Poczekaj na załadowanie kursów (max 3 sekundy)
-            odds_container = WebDriverWait(driver, 3).until(
+            # Poczekaj na załadowanie kursów (max 2 sekundy)
+            odds_container = WebDriverWait(driver, 2).until(  # Zmniejszone z 3s na 2s
                 EC.presence_of_element_located((By.CSS_SELECTOR, 
                     "[class*='odds'], [class*='Odds'], [class*='bookmaker'], [class*='Bookmaker']"))
             )
-            time.sleep(0.5)  # Krótkie opóźnienie dla pełnego załadowania
+            time.sleep(0.3)  # Zmniejszone z 0.5s na 0.3s - Krótkie opóźnienie dla pełnego załadowania
         except (TimeoutException, NoSuchElementException):
             # Kursy nie są dostępne
             pass
         
         # METODA 2: Szukaj kursów w różnych miejscach używając Selenium
         try:
-            # Szukaj wszystkich elementów które mogą zawierać kursy
+            # BARDZIEJ SPECYFICZNE selektory dla kursów (nie dat!)
             odds_elements = driver.find_elements(By.XPATH, 
-                "//*[contains(@class, 'odds') or contains(@class, 'Odds') or contains(text(), '.')]")
+                "//*[contains(@class, 'odds') or contains(@class, 'Odds') or contains(@class, 'bookmaker') or contains(@class, 'bet')]")
             
             odds_values = []
             for elem in odds_elements:
                 try:
                     text = elem.text.strip()
                     # Szukaj liczb typu 1.85, 2.10, etc. (kursy bukmacherskie)
-                    # Kursy są zazwyczaj między 1.01 a 50.00
-                    odds_match = re.findall(r'\b(\d+\.\d{2})\b', text)
+                    # WAŻNE: Pattern z 2 cyframi po przecinku (lub kropce)
+                    odds_match = re.findall(r'\b(\d+[.,]\d{2})\b', text)
                     for odd_str in odds_match:
+                        # Zamień przecinek na kropkę (europejski format)
+                        odd_str = odd_str.replace(',', '.')
                         odd_val = float(odd_str)
-                        # Filtruj tylko wartości typowe dla kursów (1.01 - 50.00)
-                        if 1.01 <= odd_val <= 50.0:
+                        # KLUCZOWA ZMIANA: Filtruj wartości typowe dla kursów (1.01 - 20.00)
+                        # Wartości >20 to prawdopodobnie DATY (np. 24.10 = 24 października)
+                        # Wartości <1 to błędy
+                        if 1.01 <= odd_val <= 20.0:
                             odds_values.append(odd_val)
                 except:
                     continue
@@ -1062,6 +1067,10 @@ def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: Beautiful
                 
                 print(f"   💰 Znaleziono kursy: {odds_data['home_odds']} - {odds_data['away_odds']}")
                 return odds_data
+            else:
+                # DEBUG: Pokaż co znaleziono jeśli nie ma kursów
+                if odds_values:
+                    print(f"   ⚠️  Znaleziono tylko {len(odds_values)} kurs(ów): {odds_values}")
                 
         except Exception as e:
             pass
@@ -1094,9 +1103,14 @@ def extract_betting_odds(soup: BeautifulSoup) -> Dict[str, Optional[float]]:
         for button in odds_buttons:
             text = button.get_text(strip=True)
             # Szukaj liczb typu 1.85, 2.10, etc.
-            odds_match = re.findall(r'\d+\.\d{2}', text)
+            odds_match = re.findall(r'\d+[.,]\d{2}', text)
             if odds_match:
-                odds_values.extend([float(o) for o in odds_match])
+                for o in odds_match:
+                    o = o.replace(',', '.')  # Europejski format
+                    val = float(o)
+                    # FILTRUJ DATY: Tylko wartości 1.01 - 20.00
+                    if 1.01 <= val <= 20.0:
+                        odds_values.append(val)
         
         # Metoda 2: Szukaj w data-attributes
         odds_elements = soup.select('[data-odds], [data-home-odds], [data-away-odds]')
@@ -1492,7 +1506,7 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
     
     try:
         driver.get(h2h_url)
-        time.sleep(3.0)  # Tennis wymaga więcej czasu na załadowanie
+        time.sleep(1.5)  # Zmniejszone z 3.0s na 1.5s - Tennis wymaga czasu na załadowanie
     except WebDriverException as e:
         print(f"Błąd otwierania {h2h_url}: {e}")
         return out
@@ -1709,18 +1723,18 @@ def get_match_links_from_day(driver: webdriver.Chrome, date: str, sports: List[s
             
             # Volleyball i niektóre sporty potrzebują więcej czasu na załadowanie
             if sport in ['volleyball', 'handball', 'rugby']:
-                time.sleep(3.5)  # Dłuższy czas dla sportów z wolniejszym ładowaniem
+                time.sleep(2.0)  # Zmniejszone z 3.5s na 2.0s
             else:
-                time.sleep(2.0)  # Standardowy czas
+                time.sleep(1.2)  # Zmniejszone z 2.0s na 1.2s
             
-            # Scroll w dół aby załadować więcej meczów (kilka razy dla pewności)
-            for _ in range(3):
+            # Scroll w dół aby załadować więcej meczów (zmniejszone z 3 na 2 razy)
+            for _ in range(2):
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(0.5)
+                time.sleep(0.3)  # Zmniejszone z 0.5s na 0.3s
             
             # Scroll do góry aby zobaczyć wszystkie mecze
             driver.execute_script("window.scrollTo(0, 0);")
-            time.sleep(0.5)
+            time.sleep(0.3)  # Zmniejszone z 0.5s na 0.3s
             
             soup = BeautifulSoup(driver.page_source, 'html.parser')
             anchors = soup.find_all('a', href=True)
@@ -1804,13 +1818,13 @@ def get_match_links_advanced(driver: webdriver.Chrome, date: str, sports: List[s
             date_url = f"{base_url}?date={date}"
             
             driver.get(date_url)
-            time.sleep(2.5)
+            time.sleep(1.5)  # Zmniejszone z 2.5s na 1.5s
             
             # Próbuj kliknąć datę w kalendarzu (jeśli istnieje)
             try:
                 calendar_btn = driver.find_element(By.XPATH, "//button[contains(@class, 'calendar') or contains(@aria-label, 'calendar')]")
                 calendar_btn.click()
-                time.sleep(1.0)
+                time.sleep(0.5)  # Zmniejszone z 1.0s na 0.5s
             except:
                 pass
             
@@ -1929,7 +1943,17 @@ Przykłady użycia:
     
     rows = []
     qualifying_count = 0
-    RESTART_INTERVAL = 80  # Restart Chrome co 80 meczów (zapobiega crashom po ~100)
+    
+    # KLUCZOWE: Na GitHub Actions używaj krótszego interwału (mniej RAM)
+    # Wykryj środowisko GitHub Actions
+    is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true'
+    if is_github_actions:
+        RESTART_INTERVAL = 30  # GitHub Actions: restart co 30 meczów (oszczędność pamięci)
+        print("🔧 Wykryto GitHub Actions - używam skróconego interwału restartu (30 meczów)")
+    else:
+        RESTART_INTERVAL = 80  # Lokalnie: restart co 80 meczów
+    
+    CHECKPOINT_INTERVAL = 20  # Checkpoint co 20 meczów (zwiększona częstotliwość dla bezpieczeństwa)
     
     for i, url in enumerate(urls, 1):
         print(f'\n[{i}/{len(urls)}] 🔍 Przetwarzam: {url[:80]}...')
@@ -2032,16 +2056,19 @@ Przykłady użycia:
             print(f'   ✅ Przetworzone dane ({len(rows)} meczów) są bezpieczne w pamięci!')
             try:
                 driver.quit()
+                # Wymuś garbage collection dla zwolnienia pamięci (ważne na GitHub Actions)
+                gc.collect()
                 time.sleep(2)
                 driver = start_driver(headless=args.headless)
                 print(f'   ✅ Przeglądarka zrestartowana! Kontynuuję od meczu {i+1}...\n')
             except Exception as e:
                 print(f'   ⚠️  Błąd restartu: {e}')
+                gc.collect()  # Wyczyść pamięć mimo błędu
                 driver = start_driver(headless=args.headless)
         
-        # Rate limiting - adaptacyjny
+        # Rate limiting - adaptacyjny (zoptymalizowany)
         elif i < len(urls):
-            delay = 1.0 + (i % 3) * 0.5
+            delay = 0.8 + (i % 3) * 0.3  # Zmniejszone z 1.0+0.5 na 0.8+0.3
             time.sleep(delay)
 
     driver.quit()
