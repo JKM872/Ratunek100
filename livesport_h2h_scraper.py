@@ -61,6 +61,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 # Helper / scraper code
 # ----------------------
 
+# Globalna zmienna kontrolująca poziom szczegółowości logów
+VERBOSE = False  # Domyślnie wyłączone, włączane przez --verbose
+
 # Mapowanie sportów na URLe Livesport
 SPORT_URLS = {
     'football': 'https://www.livesport.com/pl/pilka-nozna/',
@@ -1029,48 +1032,175 @@ def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: Beautiful
             # Kursy nie są dostępne
             pass
         
-        # METODA 2: Szukaj kursów w różnych miejscach używając Selenium
+        # METODA 2: Szukaj kursów OSOBNO dla gospodarzy i gości
         try:
-            # BARDZIEJ SPECYFICZNE selektory dla kursów (nie dat!)
+            # NOWE PODEJŚCIE: Szukaj dedykowanych elementów dla home i away
+            home_odds_found = None
+            away_odds_found = None
+            
+            # Próba 1: Szukaj elementów z 'home' i 'away' w klasie/ID
+            try:
+                home_elements = driver.find_elements(By.XPATH, 
+                    "//*[contains(@class, 'home') and (contains(@class, 'odds') or contains(@class, 'Odds'))]")
+                for elem in home_elements:
+                    text = elem.text.strip()
+                    odds_match = re.findall(r'\b(\d+[.,]\d{2})\b', text)
+                    for odd_str in odds_match:
+                        odd_str = odd_str.replace(',', '.')
+                        odd_val = float(odd_str)
+                        if 1.01 <= odd_val <= 20.0:
+                            home_odds_found = odd_val
+                            if VERBOSE:
+                                print(f"   🏠 DEBUG: Znaleziono kurs gospodarzy: {home_odds_found}")
+                            break
+                    if home_odds_found:
+                        break
+            except:
+                pass
+            
+            try:
+                away_elements = driver.find_elements(By.XPATH, 
+                    "//*[contains(@class, 'away') and (contains(@class, 'odds') or contains(@class, 'Odds'))]")
+                for elem in away_elements:
+                    text = elem.text.strip()
+                    odds_match = re.findall(r'\b(\d+[.,]\d{2})\b', text)
+                    for odd_str in odds_match:
+                        odd_str = odd_str.replace(',', '.')
+                        odd_val = float(odd_str)
+                        if 1.01 <= odd_val <= 20.0:
+                            away_odds_found = odd_val
+                            if VERBOSE:
+                                print(f"   ✈️  DEBUG: Znaleziono kurs gości: {away_odds_found}")
+                            break
+                    if away_odds_found:
+                        break
+            except:
+                pass
+            
+            # Jeśli znaleźliśmy OBA kursy dedykowaną metodą
+            if home_odds_found and away_odds_found:
+                odds_data['home_odds'] = home_odds_found
+                odds_data['away_odds'] = away_odds_found
+                if VERBOSE:
+                    print(f"   💰 Znaleziono kursy (dedykowana metoda): {home_odds_found} - {away_odds_found}")
+                return odds_data
+            
+            # FALLBACK: Stara metoda (zbierz wszystkie i próbuj rozpoznać)
+            if VERBOSE:
+                print(f"   ⚠️  Dedykowana metoda nie zadziałała, próbuję fallback...")
             odds_elements = driver.find_elements(By.XPATH, 
                 "//*[contains(@class, 'odds') or contains(@class, 'Odds') or contains(@class, 'bookmaker') or contains(@class, 'bet')]")
             
             odds_values = []
+            odds_with_context = []  # Lista tupli (wartość, kontekst_elementu)
+            
             for elem in odds_elements:
                 try:
                     text = elem.text.strip()
+                    parent_classes = elem.get_attribute('class') or ''
+                    
                     # Szukaj liczb typu 1.85, 2.10, etc. (kursy bukmacherskie)
-                    # WAŻNE: Pattern z 2 cyframi po przecinku (lub kropce)
                     odds_match = re.findall(r'\b(\d+[.,]\d{2})\b', text)
                     for odd_str in odds_match:
                         # Zamień przecinek na kropkę (europejski format)
                         odd_str = odd_str.replace(',', '.')
                         odd_val = float(odd_str)
-                        # KLUCZOWA ZMIANA: Filtruj wartości typowe dla kursów (1.01 - 20.00)
-                        # Wartości >20 to prawdopodobnie DATY (np. 24.10 = 24 października)
-                        # Wartości <1 to błędy
+                        # Filtruj wartości typowe dla kursów (1.01 - 20.00)
                         if 1.01 <= odd_val <= 20.0:
                             odds_values.append(odd_val)
+                            odds_with_context.append((odd_val, parent_classes))
+                            if VERBOSE:
+                                print(f"   🔍 DEBUG: Kurs {odd_val} w elemencie z klasą: {parent_classes[:50]}...")
                 except:
                     continue
             
-            # Jeśli znaleźliśmy co najmniej 2 kursy (home i away)
-            if len(odds_values) >= 2:
-                # Weź pierwsze dwa kursy (zazwyczaj: home, draw/-, away)
-                # Dla sportów bez remisu: home, away
-                odds_data['home_odds'] = odds_values[0]
-                # Jeśli mamy 3 kursy (1X2), weź trzeci jako away
-                if len(odds_values) >= 3:
-                    odds_data['away_odds'] = odds_values[2]
+            # KLUCZOWA NAPRAWA: Usuń duplikaty (zachowaj kolejność)
+            # Jeśli scraper wyciągnął ten sam kurs 2x, usuń duplikaty
+            seen = set()
+            unique_odds = []
+            for odd in odds_values:
+                if odd not in seen:
+                    seen.add(odd)
+                    unique_odds.append(odd)
+            
+            # DEBUG: Pokaż wszystkie znalezione kursy
+            if VERBOSE:
+                if unique_odds:
+                    print(f"   🔍 DEBUG: Znalezione kursy (unikalne, fallback): {unique_odds}")
                 else:
-                    odds_data['away_odds'] = odds_values[1]
+                    print(f"   ❌ DEBUG: Nie znaleziono ŻADNYCH kursów!")
+            
+            # INTELIGENTNE ROZPOZNAWANIE: Spróbuj określić który kurs jest dla kogo
+            # Na podstawie kontekstu (klasy HTML)
+            if len(odds_with_context) >= 2:
+                home_candidates = []
+                away_candidates = []
+                other_odds = []
                 
-                print(f"   💰 Znaleziono kursy: {odds_data['home_odds']} - {odds_data['away_odds']}")
+                for odd_val, classes in odds_with_context:
+                    classes_lower = classes.lower()
+                    if 'home' in classes_lower or 'hostiteľ' in classes_lower:
+                        home_candidates.append(odd_val)
+                    elif 'away' in classes_lower or 'hosť' in classes_lower or 'guest' in classes_lower:
+                        away_candidates.append(odd_val)
+                    else:
+                        other_odds.append(odd_val)
+                
+                if VERBOSE:
+                    print(f"   🏠 Kandydaci HOME: {home_candidates}")
+                    print(f"   ✈️  Kandydaci AWAY: {away_candidates}")
+                    print(f"   ❓ Inne: {other_odds}")
+                
+                # Jeśli mamy jasnych kandydatów
+                if home_candidates and away_candidates:
+                    odds_data['home_odds'] = home_candidates[0]
+                    odds_data['away_odds'] = away_candidates[0]
+                    if VERBOSE:
+                        print(f"   💰 Znaleziono kursy (rozpoznanie kontekstu): {odds_data['home_odds']} - {odds_data['away_odds']}")
+                    return odds_data
+            
+            # OSTATNIA PRÓBA: Jeśli znaleźliśmy co najmniej 2 RÓŻNE kursy
+            if len(unique_odds) >= 2:
+                # Dla sportów z remisem (1X2): home, draw, away
+                # Dla sportów bez remisu: home, away
+                odds_data['home_odds'] = unique_odds[0]
+                # Jeśli mamy 3 kursy (1X2), weź trzeci jako away
+                if len(unique_odds) >= 3:
+                    odds_data['away_odds'] = unique_odds[2]
+                else:
+                    odds_data['away_odds'] = unique_odds[1]
+                
+                # WALIDACJA: Sprawdź czy kursy są różne (identyczne kursy = błąd)
+                if odds_data['home_odds'] == odds_data['away_odds']:
+                    if VERBOSE:
+                        print(f"   ⚠️  UWAGA: Identyczne kursy ({odds_data['home_odds']}) - prawdopodobnie scraper nie znalazł kursu gości!")
+                    # Spróbuj alternatywną metodę: weź pierwszy i ostatni
+                    if len(unique_odds) >= 2:
+                        odds_data['home_odds'] = unique_odds[0]
+                        odds_data['away_odds'] = unique_odds[-1]  # Ostatni kurs
+                        if odds_data['home_odds'] != odds_data['away_odds']:
+                            if VERBOSE:
+                                print(f"   ✓ Alternatywna metoda (pierwszy i ostatni): {odds_data['home_odds']} - {odds_data['away_odds']}")
+                        else:
+                            if VERBOSE:
+                                print(f"   ❌ Nadal identyczne - problem ze scrapingiem kursów gości")
+                                print(f"   💡 Livesport prawdopodobnie nie pokazuje obu kursów na stronie H2H")
+                            return {'home_odds': None, 'away_odds': None}
+                
+                if VERBOSE:
+                    print(f"   💰 Znaleziono kursy (metoda pozycyjna): {odds_data['home_odds']} - {odds_data['away_odds']}")
                 return odds_data
+            elif len(unique_odds) == 1:
+                if VERBOSE:
+                    print(f"   ⚠️  Znaleziono tylko 1 kurs: {unique_odds[0]} - brak kursu dla gości!")
+                    print(f"   💡 Możliwe przyczyny:")
+                    print(f"      1. Livesport nie pokazuje kursu gości na tej stronie")
+                    print(f"      2. Kurs gości ma inną strukturę HTML")
+                    print(f"      3. Kursy są dostępne tylko na głównej stronie meczu (nie /h2h/)")
+                return {'home_odds': unique_odds[0], 'away_odds': None}  # Zwróć przynajmniej home
             else:
-                # DEBUG: Pokaż co znaleziono jeśli nie ma kursów
-                if odds_values:
-                    print(f"   ⚠️  Znaleziono tylko {len(odds_values)} kurs(ów): {odds_values}")
+                if VERBOSE:
+                    print(f"   ❌ Nie znaleziono żadnych kursów")
                 
         except Exception as e:
             pass
@@ -1112,6 +1242,14 @@ def extract_betting_odds(soup: BeautifulSoup) -> Dict[str, Optional[float]]:
                     if 1.01 <= val <= 20.0:
                         odds_values.append(val)
         
+        # Usuń duplikaty (zachowaj kolejność)
+        seen = set()
+        unique_odds = []
+        for odd in odds_values:
+            if odd not in seen:
+                seen.add(odd)
+                unique_odds.append(odd)
+        
         # Metoda 2: Szukaj w data-attributes
         odds_elements = soup.select('[data-odds], [data-home-odds], [data-away-odds]')
         for elem in odds_elements:
@@ -1137,10 +1275,20 @@ def extract_betting_odds(soup: BeautifulSoup) -> Dict[str, Optional[float]]:
             except:
                 pass
         
-        # Jeśli znaleźliśmy dokładnie 2 kursy (home i away)
-        if len(odds_values) >= 2 and odds_data['home_odds'] is None:
-            odds_data['home_odds'] = odds_values[0]
-            odds_data['away_odds'] = odds_values[1]
+        # Jeśli znaleźliśmy co najmniej 2 RÓŻNE kursy (home i away)
+        if len(unique_odds) >= 2 and odds_data['home_odds'] is None:
+            odds_data['home_odds'] = unique_odds[0]
+            odds_data['away_odds'] = unique_odds[1]
+            
+            # WALIDACJA: Sprawdź czy kursy są różne
+            if odds_data['home_odds'] == odds_data['away_odds']:
+                # Spróbuj pierwszy i ostatni
+                if len(unique_odds) >= 2:
+                    odds_data['away_odds'] = unique_odds[-1]
+                    if odds_data['home_odds'] == odds_data['away_odds']:
+                        # Nadal identyczne - odrzuć
+                        odds_data['home_odds'] = None
+                        odds_data['away_odds'] = None
         
         return odds_data
         
@@ -1646,33 +1794,49 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
     # ===================================================================
     
     try:
-        from tennis_advanced import TennisMatchAnalyzer
+        from tennis_advanced_v3 import TennisMatchAnalyzerV3
         
-        analyzer = TennisMatchAnalyzer()
+        analyzer = TennisMatchAnalyzerV3()
         
-        # Przygotuj dane H2H
-        h2h_data = {
-            'player_a_wins': player_a_wins,
-            'player_b_wins': player_b_wins,
-            'total': len(h2h)
-        }
+        # V3 Przygotuj dane H2H jako listę meczów (nowy format)
+        h2h_matches = []
+        for h2h_match in h2h:
+            # Konwertuj do formatu wymaganego przez V3
+            winner = None
+            score_str = h2h_match.get('score', '')
+            
+            # Określ zwycięzcę
+            if h2h_match.get('winner') == 'home':
+                winner = 'player_a' if h2h_match.get('home') == player_a else 'player_b'
+            elif h2h_match.get('winner') == 'away':
+                winner = 'player_b' if h2h_match.get('away') == player_b else 'player_a'
+            
+            h2h_matches.append({
+                'date': h2h_match.get('date', ''),
+                'winner': winner,
+                'score': score_str,
+                'surface': h2h_match.get('surface', out['surface'])
+            })
         
-        # Surface stats - uproszczona wersja (obliczamy z dostępnych H2H + ranking)
+        # V3 wymaga form_a/form_b jako lista dict z 'result', 'date', etc.
+        form_a_v3 = [{'result': r, 'date': '', 'opponent_rank': None} for r in out['form_a']] if out['form_a'] else []
+        form_b_v3 = [{'result': r, 'date': '', 'opponent_rank': None} for r in out['form_b']] if out['form_b'] else []
+        
+        # Surface stats - V3 format
         surface_stats_a = calculate_surface_stats_from_h2h(h2h, player_a, out['surface'], out['ranking_a'])
         surface_stats_b = calculate_surface_stats_from_h2h(h2h, player_b, out['surface'], out['ranking_b'])
         
-        # Analiza
+        # Analiza V3
         analysis = analyzer.analyze_match(
             player_a=player_a or 'Player A',
             player_b=player_b or 'Player B',
-            h2h_data=h2h_data,
-            ranking_a=out['ranking_a'],
-            ranking_b=out['ranking_b'],
-            form_a=out['form_a'] if out['form_a'] else None,
-            form_b=out['form_b'] if out['form_b'] else None,
+            h2h_matches=h2h_matches,
+            form_a=form_a_v3,
+            form_b=form_b_v3,
             surface=out['surface'],
-            surface_stats_a=surface_stats_a if out['surface'] else None,
-            surface_stats_b=surface_stats_b if out['surface'] else None
+            surface_stats_a=surface_stats_a if out['surface'] else {},
+            surface_stats_b=surface_stats_b if out['surface'] else {},
+            tournament_info=url  # URL może zawierać nazwę turnieju
         )
         
         # Zapisz wyniki
@@ -1722,15 +1886,25 @@ def get_match_links_from_day(driver: webdriver.Chrome, date: str, sports: List[s
             driver.get(date_url)
             
             # Volleyball i niektóre sporty potrzebują więcej czasu na załadowanie
-            if sport in ['volleyball', 'handball', 'rugby']:
-                time.sleep(2.0)  # Zmniejszone z 3.5s na 2.0s
+            # ZWIĘKSZONE dla GitHub Actions - strona ładuje się wolniej w chmurze
+            is_github = os.environ.get('GITHUB_ACTIONS') == 'true'
+            if is_github:
+                # GitHub Actions: dłuższy timeout dla ładowania
+                if sport in ['volleyball', 'handball', 'rugby']:
+                    time.sleep(3.5)
+                else:
+                    time.sleep(2.5)
             else:
-                time.sleep(1.2)  # Zmniejszone z 2.0s na 1.2s
+                # Lokalnie: szybsze timeouty
+                if sport in ['volleyball', 'handball', 'rugby']:
+                    time.sleep(2.0)
+                else:
+                    time.sleep(1.2)
             
-            # Scroll w dół aby załadować więcej meczów (zmniejszone z 3 na 2 razy)
-            for _ in range(2):
+            # Scroll w dół aby załadować więcej meczów (więcej razy dla pewności)
+            for _ in range(3):  # Zwiększone z 2 na 3
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(0.3)  # Zmniejszone z 0.5s na 0.3s
+                time.sleep(0.5)  # Zwiększone z 0.3s na 0.5s
             
             # Scroll do góry aby zobaczyć wszystkie mecze
             driver.execute_script("window.scrollTo(0, 0);")
@@ -1773,15 +1947,25 @@ def get_match_links_from_day(driver: webdriver.Chrome, date: str, sports: List[s
                     if href not in sport_links and href not in all_links:
                         sport_links.append(href)
             
-            # Debug info dla volleyball gdy nic nie znaleziono
-            if sport == 'volleyball' and len(sport_links) == 0:
-                print(f"   ⚠️  DEBUG - Wzorce znalezione: {debug_patterns_found}")
-                print(f"   ⚠️  DEBUG - Wszystkich linków: {len(anchors)}")
-                # Pokaż przykładowe hrefs
+            # Debug info gdy nic nie znaleziono (dla wszystkich sportów)
+            if len(sport_links) == 0:
+                print(f"   ⚠️  BRAK MECZÓW dla {sport} - DEBUG:")
+                print(f"   ⚠️  Wzorce znalezione: {debug_patterns_found}")
+                print(f"   ⚠️  Wszystkich linków na stronie: {len(anchors)}")
+                # Pokaż przykładowe hrefs (pierwsze 10)
                 sample_hrefs = [a['href'] for a in anchors[:20] if a.get('href')]
-                print(f"   ⚠️  DEBUG - Przykładowe hrefs: {sample_hrefs[:5]}")
-            
-            print(f"   ✓ Znaleziono {len(sport_links)} meczów dla {sport}")
+                if sample_hrefs:
+                    print(f"   ⚠️  Przykładowe hrefs (pierwsze 5):")
+                    for idx, href in enumerate(sample_hrefs[:5], 1):
+                        print(f"      {idx}. {href[:100]}...")
+                else:
+                    print(f"   ⚠️  NIE znaleziono ŻADNYCH linków <a href=...> na stronie!")
+                    print(f"   💡 Możliwe przyczyny:")
+                    print(f"      - Strona wymaga więcej czasu na załadowanie (JavaScript)")
+                    print(f"      - Data jest w przyszłości lub przeszłości bez meczów")
+                    print(f"      - Livesport zmienił strukturę strony")
+            else:
+                print(f"   ✓ Znaleziono {len(sport_links)} meczów dla {sport}")
             all_links.extend(sport_links)
             
         except Exception as e:
@@ -1886,7 +2070,13 @@ Przykłady użycia:
     parser.add_argument('--output-suffix', help='Dodatkowy sufiks do nazwy pliku wyjściowego')
     parser.add_argument('--away-team-focus', action='store_true', 
                        help='Szukaj meczów gdzie GOŚCIE mają >=60%% zwycięstw w H2H (zamiast gospodarzy)')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                       help='Szczegółowe logi (debug mode) - pokazuje wszystkie kroki scrapowania')
     args = parser.parse_args()
+
+    # Ustaw VERBOSE globalnie
+    global VERBOSE
+    VERBOSE = args.verbose
 
     # Walidacja
     if args.mode == 'urls' and not args.input:
@@ -1956,7 +2146,11 @@ Przykłady użycia:
     CHECKPOINT_INTERVAL = 20  # Checkpoint co 20 meczów (zwiększona częstotliwość dla bezpieczeństwa)
     
     for i, url in enumerate(urls, 1):
-        print(f'\n[{i}/{len(urls)}] 🔍 Przetwarzam: {url[:80]}...')
+        if VERBOSE:
+            print(f'\n[{i}/{len(urls)}] 🔍 Przetwarzam: {url[:80]}...')
+        else:
+            # Prosty progress indicator
+            print(f'\r[{i}/{len(urls)}] Przetwarzam...', end='', flush=True)
         try:
             # Wykryj sport z URL (tennis ma '/tenis/' w URLu)
             is_tennis = '/tenis/' in url.lower() or 'tennis' in url.lower()
@@ -1981,26 +2175,32 @@ Przykłady użycia:
                     else:
                         fav_name = "Równi"
                     
-                    print(f'   ✅ KWALIFIKUJE SIĘ! {info["home_team"]} vs {info["away_team"]}')
-                    print(f'      Faworytem: {fav_name} (Score: {advanced_score:.1f}/100)')
-                    print(f'      H2H: {player_a_wins}-{player_b_wins}')
-                    
-                    # Pokaż breakdown jeśli dostępny
-                    if 'score_breakdown' in info:
-                        breakdown = info['score_breakdown']
-                        print(f'      └─ H2H:{breakdown.get("h2h_score", 0):.0f} | Rank:{breakdown.get("ranking_score", 0):.0f} | Form:{breakdown.get("form_score", 0):.0f} | Surface:{breakdown.get("surface_score", 0):.0f}')
-                    
-                    # Pokaż dodatkowe info
-                    if info.get('ranking_a') and info.get('ranking_b'):
-                        print(f'      Rankings: #{info["ranking_a"]} vs #{info["ranking_b"]}')
-                    if info.get('surface'):
-                        print(f'      Surface: {info["surface"]}')
+                    # Tryb normalny: krótka wiadomość
+                    if not VERBOSE:
+                        print(f'\r[{i}/{len(urls)}] ✅ {info["home_team"]} vs {info["away_team"]} - Faworytem: {fav_name} ({advanced_score:.0f}/100)')
+                    else:
+                        # Tryb verbose: szczegóły
+                        print(f'   ✅ KWALIFIKUJE SIĘ! {info["home_team"]} vs {info["away_team"]}')
+                        print(f'      Faworytem: {fav_name} (Score: {advanced_score:.1f}/100)')
+                        print(f'      H2H: {player_a_wins}-{player_b_wins}')
+                        
+                        # Pokaż breakdown jeśli dostępny
+                        if 'score_breakdown' in info:
+                            breakdown = info['score_breakdown']
+                            print(f'      └─ H2H:{breakdown.get("h2h_score", 0):.0f} | Rank:{breakdown.get("ranking_score", 0):.0f} | Form:{breakdown.get("form_score", 0):.0f} | Surface:{breakdown.get("surface_score", 0):.0f}')
+                        
+                        # Pokaż dodatkowe info
+                        if info.get('ranking_a') and info.get('ranking_b'):
+                            print(f'      Rankings: #{info["ranking_a"]} vs #{info["ranking_b"]}')
+                        if info.get('surface'):
+                            print(f'      Surface: {info["surface"]}')
                         
                 else:
                     player_a_wins = info['home_wins_in_h2h_last5']
                     player_b_wins = info.get('away_wins_in_h2h', 0)
                     advanced_score = info.get('advanced_score', 0)
-                    print(f'   ❌ Nie kwalifikuje się (H2H: {player_a_wins}-{player_b_wins}, Score: {advanced_score:.1f}/100)')
+                    if VERBOSE:
+                        print(f'   ❌ Nie kwalifikuje (H2H: {player_a_wins}-{player_b_wins}, Score: {advanced_score:.1f}/100)')
             else:
                 # Sporty drużynowe (football, basketball, etc.)
                 info = process_match(url, driver, away_team_focus=args.away_team_focus)
@@ -2024,31 +2224,38 @@ Przykłady użycia:
                         wins_count = info['home_wins_in_h2h_last5']
                         team_name = info['home_team']
                     
-                    print(f'   ✅ KWALIFIKUJE SIĘ! {info["home_team"]} vs {info["away_team"]}')
-                    print(f'      Zespół fokusowany: {team_name}')
-                    print(f'      H2H: {wins_count}/{h2h_count} ({win_rate*100:.0f}%)')
-                    if home_form or away_form:
-                        print(f'      Forma: {info["home_team"]} [{home_form_str}] | {info["away_team"]} [{away_form_str}]')
-                        
-                    # Pokaż szczegóły H2H dla kwalifikujących się
-                    if info['h2h_last5']:
-                        print(f'      Ostatnie H2H:')
-                        for idx, h2h in enumerate(info['h2h_last5'][:5], 1):
-                            print(f'        {idx}. {h2h.get("home", "?")} {h2h.get("score", "?")} {h2h.get("away", "?")}')
+                    # Tryb normalny: krótka wiadomość
+                    if not VERBOSE:
+                        print(f'\r[{i}/{len(urls)}] ✅ {info["home_team"]} vs {info["away_team"]} - {team_name} ({wins_count}/{h2h_count} = {win_rate*100:.0f}%)')
+                    else:
+                        # Tryb verbose: szczegóły
+                        print(f'   ✅ KWALIFIKUJE SIĘ! {info["home_team"]} vs {info["away_team"]}')
+                        print(f'      Zespół fokusowany: {team_name}')
+                        print(f'      H2H: {wins_count}/{h2h_count} ({win_rate*100:.0f}%)')
+                        if home_form or away_form:
+                            print(f'      Forma: {info["home_team"]} [{home_form_str}] | {info["away_team"]} [{away_form_str}]')
+                            
+                        # Pokaż szczegóły H2H dla kwalifikujących się
+                        if info['h2h_last5']:
+                            print(f'      Ostatnie H2H:')
+                            for idx, h2h in enumerate(info['h2h_last5'][:5], 1):
+                                print(f'        {idx}. {h2h.get("home", "?")} {h2h.get("score", "?")} {h2h.get("away", "?")}')
                 else:
                     h2h_count = info.get('h2h_count', 0)
                     win_rate = info.get('win_rate', 0.0)
-                    if h2h_count > 0:
-                        if args.away_team_focus:
-                            wins_count = info.get('away_wins_in_h2h_last5', 0)
+                    if VERBOSE:
+                        if h2h_count > 0:
+                            if args.away_team_focus:
+                                wins_count = info.get('away_wins_in_h2h_last5', 0)
+                            else:
+                                wins_count = info['home_wins_in_h2h_last5']
+                            print(f'   ❌ Nie kwalifikuje ({wins_count}/{h2h_count} = {win_rate*100:.0f}%)')
                         else:
-                            wins_count = info['home_wins_in_h2h_last5']
-                        print(f'   ❌ Nie kwalifikuje się ({wins_count}/{h2h_count} = {win_rate*100:.0f}%)')
-                    else:
-                        print(f'   ⚠️  Brak H2H')
+                            print(f'   ⚠️  Brak H2H')
                 
         except Exception as e:
-            print(f'   ⚠️  Błąd: {e}')
+            if VERBOSE:
+                print(f'   ⚠️  Błąd: {e}')
         
         # AUTO-RESTART przeglądarki co N meczów (zapobiega crashom)
         if i % RESTART_INTERVAL == 0 and i < len(urls):
@@ -2073,6 +2280,10 @@ Przykłady użycia:
 
     driver.quit()
 
+    # Wyczyść progress indicator z trybu normalnego
+    if not VERBOSE:
+        print()  # Nowa linia po progress indicator
+    
     # Zapisywanie wyników
     print('\n' + '='*60)
     print('💾 Zapisywanie wyników...')
