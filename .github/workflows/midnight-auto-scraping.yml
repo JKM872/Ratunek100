@@ -42,7 +42,10 @@ jobs:
         echo "🗓️ Scraping Football dla daty: $TODAY"
         
         # Mail 1: Zdarzenia z przewagą formy + kursy
-        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports football \
@@ -52,13 +55,18 @@ jobs:
           --headless \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
-        # Poczekaj 5 sekund między mailami
-        sleep 5
+        # Poczekaj 10 sekund między mailami
+        echo ""
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
+        sleep 10
         
         # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
-        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports football \
@@ -67,7 +75,10 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Football scraping zakończony!"
       
       env:
         DISPLAY: ':99'
@@ -113,7 +124,10 @@ jobs:
         echo "🗓️ Scraping Basketball dla daty: $TODAY"
         
         # Mail 1: Zdarzenia z przewagą formy + kursy
-        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports basketball \
@@ -123,13 +137,18 @@ jobs:
           --headless \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
-        # Poczekaj 5 sekund między mailami
-        sleep 5
+        # Poczekaj 10 sekund między mailami
+        echo ""
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
+        sleep 10
         
         # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
-        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports basketball \
@@ -138,7 +157,10 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Basketball scraping zakończony!"
       
       env:
         DISPLAY: ':99'
@@ -184,7 +206,10 @@ jobs:
         echo "🗓️ Scraping Handball dla daty: $TODAY"
         
         # Mail 1: Zdarzenia z przewagą formy + kursy
-        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports handball \
@@ -194,13 +219,18 @@ jobs:
           --headless \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
-        # Poczekaj 5 sekund między mailami
-        sleep 5
+        # Poczekaj 10 sekund między mailami
+        echo ""
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
+        sleep 10
         
         # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
-        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports handball \
@@ -209,7 +239,10 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Handball scraping zakończony!"
       
       env:
         DISPLAY: ':99'
@@ -255,7 +288,10 @@ jobs:
         echo "🗓️ Scraping Volleyball dla daty: $TODAY"
         
         # Mail 1: Zdarzenia z przewagą formy + kursy
-        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports volleyball \
@@ -265,13 +301,18 @@ jobs:
           --headless \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
-        # Poczekaj 5 sekund między mailami
-        sleep 5
+        # Poczekaj 10 sekund między mailami
+        echo ""
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
+        sleep 10
         
         # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
-        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports volleyball \
@@ -280,7 +321,10 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Volleyball scraping zakończony!"
       
       env:
         DISPLAY: ':99'
@@ -326,7 +370,10 @@ jobs:
         echo "🗓️ Scraping Hockey dla daty: $TODAY"
         
         # Mail 1: Zdarzenia z przewagą formy + kursy
-        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports hockey \
@@ -336,13 +383,18 @@ jobs:
           --headless \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
-        # Poczekaj 5 sekund między mailami
-        sleep 5
+        # Poczekaj 10 sekund między mailami
+        echo ""
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
+        sleep 10
         
         # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
-        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
           --sports hockey \
@@ -351,7 +403,10 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Hockey scraping zakończony!"
       
       env:
         DISPLAY: ':99'

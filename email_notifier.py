@@ -392,10 +392,16 @@ def send_email_notification(
         if skip_no_odds:
             messages.append("KURSAMI")
         
+        print("="*70)
+        print("⚠️  BRAK ZDARZEŃ DO WYSŁANIA")
+        print("="*70)
         if messages:
-            print(f"Brak kwalifikujacych sie meczow z {' i '.join(messages)} do wyslania")
+            print(f"📊 Powód: Brak kwalifikujących się meczów z {' i '.join(messages)}")
         else:
-            print("Brak kwalifikujacych sie meczow do wyslania")
+            print(f"📊 Powód: Brak kwalifikujących się meczów")
+        print(f"📄 CSV: {csv_file}")
+        print(f"📧 Email: {to_email}")
+        print("="*70)
         return
 
     # Policz mecze z kursami i bez (tylko jeśli nie pomijamy meczów bez kursów)
