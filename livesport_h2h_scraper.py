@@ -56,6 +56,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 
+# Import własnych modułów
+import over_under_analyzer
+
 
 # ----------------------
 # Helper / scraper code
@@ -622,6 +625,94 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
     odds = extract_betting_odds_with_api(url)
     out['home_odds'] = odds.get('home_odds')
     out['away_odds'] = odds.get('away_odds')
+    
+    # ===================================================================
+    # ANALIZA OVER/UNDER - Statystyki bramek/punktów
+    # ===================================================================
+    # Używamy prostszej wersji: tylko dane H2H (bez osobnej formy drużyn)
+    # To jest wystarczające do analizy i znacznie szybsze (mniej requestów)
+    
+    out['ou_qualifies'] = False  # Czy kwalifikuje się do O/U
+    out['ou_line'] = None  # Linia O/U (np. 2.5)
+    out['ou_line_type'] = None  # Typ: 'goals', 'points', 'sets'
+    out['ou_h2h_percentage'] = 0.0  # % meczów Over w H2H
+    out['over_odds'] = None  # Kurs na Over
+    out['under_odds'] = None  # Kurs na Under
+    out['btts_qualifies'] = False  # Czy kwalifikuje się BTTS (tylko football)
+    out['btts_h2h_percentage'] = 0.0
+    out['btts_yes_odds'] = None
+    out['btts_no_odds'] = None
+    
+    # Wykryj sport z URL
+    sport = 'football'  # domyślnie
+    if 'koszykowka' in url.lower() or 'basketball' in url.lower():
+        sport = 'basketball'
+    elif 'siatkowka' in url.lower() or 'volleyball' in url.lower():
+        sport = 'volleyball'
+    elif 'pilka-reczna' in url.lower() or 'handball' in url.lower():
+        sport = 'handball'
+    elif 'hokej' in url.lower() or 'hockey' in url.lower():
+        sport = 'hockey'
+    elif 'tenis' in url.lower() or 'tennis' in url.lower():
+        sport = 'tennis'
+    
+    # Wykonaj analizę O/U tylko jeśli mamy dane H2H
+    if len(h2h) >= 5:
+        try:
+            # Używamy danych H2H dla obu drużyn (uproszczona wersja)
+            # W pełnej wersji byłyby osobne dane formy, ale to wymagałoby więcej requestów
+            ou_analysis = over_under_analyzer.analyze_over_under(
+                sport=sport,
+                h2h_results=h2h,
+                home_form=h2h,  # Uproszczenie: używamy H2H jako formy
+                away_form=h2h   # Uproszczenie: używamy H2H jako formy
+            )
+            
+            if ou_analysis:
+                # Football: Over 2.5 + BTTS
+                if sport == 'football' and 'over_2_5_qualifies' in ou_analysis:
+                    out['ou_qualifies'] = ou_analysis['over_2_5_qualifies']
+                    out['ou_line'] = '2.5'
+                    out['ou_line_type'] = 'goals'
+                    out['ou_h2h_percentage'] = ou_analysis['over_2_5_h2h_percentage']
+                    
+                    out['btts_qualifies'] = ou_analysis['btts_qualifies']
+                    out['btts_h2h_percentage'] = ou_analysis['btts_h2h_percentage']
+                
+                # Inne sporty: Over/Under
+                elif 'qualifies' in ou_analysis:
+                    out['ou_qualifies'] = ou_analysis['qualifies']
+                    out['ou_line'] = str(ou_analysis.get('line', ''))
+                    out['ou_line_type'] = ou_analysis.get('line_type', '')
+                    out['ou_h2h_percentage'] = ou_analysis.get('h2h_percentage', 0.0)
+                
+                # Pobierz kursy O/U z API (jeśli jest Event ID)
+                if url and '?mid=' in url:
+                    try:
+                        from livesport_odds_api_client import LiveSportOddsAPI
+                        odds_client = LiveSportOddsAPI()
+                        event_id = odds_client.extract_event_id_from_url(url)
+                        
+                        if event_id:
+                            # Kursy O/U
+                            ou_odds = odds_client.get_over_under_odds(event_id, sport)
+                            if ou_odds:
+                                out['over_odds'] = ou_odds.get('over_odds')
+                                out['under_odds'] = ou_odds.get('under_odds')
+                            
+                            # Kursy BTTS (tylko football)
+                            if sport == 'football':
+                                btts_odds = odds_client.get_btts_odds(event_id)
+                                if btts_odds:
+                                    out['btts_yes_odds'] = btts_odds.get('btts_yes')
+                                    out['btts_no_odds'] = btts_odds.get('btts_no')
+                    except Exception as e:
+                        if VERBOSE:
+                            print(f"   ⚠️ Błąd pobierania kursów O/U: {e}")
+        
+        except Exception as e:
+            if VERBOSE:
+                print(f"   ⚠️ Błąd analizy O/U: {e}")
 
     return out
 
@@ -1871,6 +1962,58 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
     odds = extract_betting_odds_with_api(url)
     out['home_odds'] = odds.get('home_odds')
     out['away_odds'] = odds.get('away_odds')
+    
+    # ===================================================================
+    # ANALIZA OVER/UNDER - Statystyki setów (Tennis)
+    # ===================================================================
+    
+    out['ou_qualifies'] = False
+    out['ou_line'] = None
+    out['ou_line_type'] = None
+    out['ou_h2h_percentage'] = 0.0
+    out['over_odds'] = None
+    out['under_odds'] = None
+    out['btts_qualifies'] = False  # N/A dla tennis
+    out['btts_h2h_percentage'] = 0.0
+    out['btts_yes_odds'] = None
+    out['btts_no_odds'] = None
+    
+    # Wykonaj analizę O/U dla tenisa (Over/Under setów)
+    if len(h2h) >= 5:
+        try:
+            # Analiza Over/Under setów (typowo 2.5 dla Best of 3)
+            ou_analysis = over_under_analyzer.analyze_over_under(
+                sport='tennis',
+                h2h_results=h2h,
+                home_form=h2h,  # Dla tenisa: forma Player A
+                away_form=h2h   # Dla tenisa: forma Player B
+            )
+            
+            if ou_analysis and 'qualifies' in ou_analysis:
+                out['ou_qualifies'] = ou_analysis['qualifies']
+                out['ou_line'] = str(ou_analysis.get('line', '2.5'))
+                out['ou_line_type'] = ou_analysis.get('line_type', 'sets')
+                out['ou_h2h_percentage'] = ou_analysis.get('h2h_percentage', 0.0)
+                
+                # Pobierz kursy O/U z API
+                if url and '?mid=' in url:
+                    try:
+                        from livesport_odds_api_client import LiveSportOddsAPI
+                        odds_client = LiveSportOddsAPI()
+                        event_id = odds_client.extract_event_id_from_url(url)
+                        
+                        if event_id:
+                            ou_odds = odds_client.get_over_under_odds(event_id, 'tennis')
+                            if ou_odds:
+                                out['over_odds'] = ou_odds.get('over_odds')
+                                out['under_odds'] = ou_odds.get('under_odds')
+                    except Exception as e:
+                        if VERBOSE:
+                            print(f"   ⚠️ Błąd pobierania kursów O/U (tennis): {e}")
+        
+        except Exception as e:
+            if VERBOSE:
+                print(f"   ⚠️ Błąd analizy O/U (tennis): {e}")
     
     # ===================================================================
     # ADVANCED SCORING: Multi-factor analysis

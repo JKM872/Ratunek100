@@ -331,6 +331,275 @@ def create_html_email(matches: List[Dict], date: str, sort_by: str = 'time') -> 
     return html
 
 
+def create_over_under_html_email(matches: List[Dict], date: str, sport: str = 'football') -> str:
+    """
+    Tworzy specjalny HTML email z statystykami Over/Under
+    
+    Args:
+        matches: Lista meczów z analizą O/U
+        date: Data
+        sport: Nazwa sportu
+    """
+    
+    # Sortuj chronologicznie
+    sorted_matches = matches.copy()
+    def get_time_key(match):
+        match_time = match.get('match_time', '')
+        if not match_time:
+            return '99:99'
+        import re
+        time_match = re.search(r'(\d{1,2}:\d{2})', match_time)
+        if time_match:
+            return time_match.group(1)
+        return '99:99'
+    sorted_matches = sorted(sorted_matches, key=get_time_key)
+    
+    # Emoji dla sportów
+    sport_emoji = {
+        'football': '⚽',
+        'basketball': '🏀',
+        'handball': '🤾',
+        'volleyball': '🏐',
+        'hockey': '🏒',
+        'tennis': '🎾'
+    }
+    emoji = sport_emoji.get(sport, '📊')
+    
+    sport_name = sport.capitalize()
+    
+    html = f"""
+    <html>
+    <head>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+            }}
+            .header {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }}
+            .content {{
+                padding: 20px;
+            }}
+            .match {{
+                border: 2px solid #667eea;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 15px 0;
+                background-color: #f9f9ff;
+            }}
+            .match-title {{
+                font-size: 18px;
+                font-weight: bold;
+                color: #667eea;
+                margin-bottom: 10px;
+            }}
+            .ou-section {{
+                background-color: #fff;
+                border-left: 4px solid #667eea;
+                padding: 10px;
+                margin: 10px 0;
+            }}
+            .ou-title {{
+                font-size: 16px;
+                font-weight: bold;
+                color: #667eea;
+                margin-bottom: 8px;
+            }}
+            .stat-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 5px 0;
+                border-bottom: 1px dotted #ddd;
+            }}
+            .stat-label {{
+                color: #666;
+            }}
+            .stat-value {{
+                font-weight: bold;
+                color: #333;
+            }}
+            .odds-box {{
+                background-color: #fff3cd;
+                padding: 12px;
+                border-radius: 5px;
+                margin-top: 10px;
+                border: 1px solid #ffc107;
+            }}
+            .odds-title {{
+                font-weight: bold;
+                color: #856404;
+                margin-bottom: 8px;
+            }}
+            .odds-row {{
+                display: flex;
+                justify-content: space-around;
+                margin-top: 8px;
+            }}
+            .odds-item {{
+                text-align: center;
+            }}
+            .odds-label {{
+                font-size: 12px;
+                color: #666;
+            }}
+            .odds-value {{
+                font-size: 20px;
+                font-weight: bold;
+                color: #28a745;
+            }}
+            .btts-section {{
+                background-color: #e7f5ff;
+                border-left: 4px solid #0366d6;
+                padding: 10px;
+                margin: 10px 0;
+            }}
+            .match-time {{
+                font-size: 14px;
+                color: #FF5722;
+                font-weight: bold;
+            }}
+            .footer {{
+                text-align: center;
+                padding: 20px;
+                color: #888;
+                font-size: 12px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>{emoji} Over/Under Statistics - {sport_name}</h1>
+            <h2>{date}</h2>
+            <p style="font-size: 14px; margin-top: 10px;">
+                💰 Mecze z wysokim prawdopodobieństwem Over/Under
+            </p>
+        </div>
+        
+        <div class="content">
+            <p>Znaleziono <strong>{len(sorted_matches)}</strong> meczów z kwalifikującymi się statystykami O/U:</p>
+    """
+    
+    for idx, match in enumerate(sorted_matches, 1):
+        home_team = match.get('home_team', 'N/A')
+        away_team = match.get('away_team', 'N/A')
+        match_time = match.get('match_time', 'N/A')
+        url = match.get('url', '#')
+        
+        ou_line = match.get('ou_line', 'N/A')
+        ou_line_type = match.get('ou_line_type', 'goals')
+        ou_h2h_pct = match.get('ou_h2h_percentage', 0)
+        
+        over_odds = match.get('over_odds')
+        under_odds = match.get('under_odds')
+        
+        btts_qualifies = match.get('btts_qualifies', False)
+        btts_h2h_pct = match.get('btts_h2h_percentage', 0)
+        btts_yes_odds = match.get('btts_yes_odds')
+        btts_no_odds = match.get('btts_no_odds')
+        
+        # Tłumaczenie line_type
+        line_type_pl = {
+            'goals': 'bramek',
+            'points': 'punktów',
+            'sets': 'setów',
+            'games': 'gemów'
+        }.get(ou_line_type, ou_line_type)
+        
+        html += f"""
+            <div class="match">
+                <div class="match-title">
+                    #{idx}. {home_team} vs {away_team}
+                </div>
+                <div class="match-time">📅 {match_time}</div>
+                <a href="{url}" style="font-size: 12px; color: #667eea;">🔗 Zobacz mecz na Livesport</a>
+                
+                <div class="ou-section">
+                    <div class="ou-title">📊 Over {ou_line} {line_type_pl}</div>
+                    <div class="stat-row">
+                        <span class="stat-label">🔥 H2H (ostatnie 5 meczów):</span>
+                        <span class="stat-value">{ou_h2h_pct}% meczów OVER</span>
+                    </div>
+                </div>
+        """
+        
+        # Kursy Over/Under
+        if over_odds and under_odds:
+            # Walidacja kursów (muszą być > 1.0 i < 100)
+            import pandas as pd
+            valid_over = not pd.isna(over_odds) and 1.0 < over_odds < 100
+            valid_under = not pd.isna(under_odds) and 1.0 < under_odds < 100
+            
+            if valid_over and valid_under:
+                html += f"""
+                <div class="odds-box">
+                    <div class="odds-title">💰 KURSY (Nordic Bet):</div>
+                    <div class="odds-row">
+                        <div class="odds-item">
+                            <div class="odds-label">Over {ou_line}</div>
+                            <div class="odds-value">{over_odds}</div>
+                        </div>
+                        <div class="odds-item">
+                            <div class="odds-label">Under {ou_line}</div>
+                            <div class="odds-value">{under_odds}</div>
+                        </div>
+                    </div>
+                </div>
+                """
+        
+        # BTTS (tylko dla football)
+        if sport == 'football' and btts_qualifies:
+            html += f"""
+                <div class="btts-section">
+                    <div class="ou-title">⚽ BTTS (Both Teams To Score)</div>
+                    <div class="stat-row">
+                        <span class="stat-label">🔥 H2H - obie drużyny strzeliły:</span>
+                        <span class="stat-value">{btts_h2h_pct}%</span>
+                    </div>
+            """
+            
+            if btts_yes_odds and btts_no_odds:
+                import pandas as pd
+                valid_yes = not pd.isna(btts_yes_odds) and 1.0 < btts_yes_odds < 100
+                valid_no = not pd.isna(btts_no_odds) and 1.0 < btts_no_odds < 100
+                
+                if valid_yes and valid_no:
+                    html += f"""
+                    <div class="odds-row" style="margin-top: 10px;">
+                        <div class="odds-item">
+                            <div class="odds-label">Yes</div>
+                            <div class="odds-value">{btts_yes_odds}</div>
+                        </div>
+                        <div class="odds-item">
+                            <div class="odds-label">No</div>
+                            <div class="odds-value">{btts_no_odds}</div>
+                        </div>
+                    </div>
+                    """
+            
+            html += "</div>"  # Zamknij btts-section
+        
+        html += "</div>"  # Zamknij match div
+    
+    html += """
+        </div>
+        
+        <div class="footer">
+            <p>📧 Automatyczne powiadomienie z volleyball-scraper</p>
+            <p>💡 Statystyki bazują na analizie H2H i formy drużyn/zawodników</p>
+            <p>⚠️ Zawsze sprawdzaj kursy przed obstawieniem!</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html
+
+
 def send_email_notification(
     csv_file: str,
     to_email: str,
@@ -340,7 +609,8 @@ def send_email_notification(
     subject: str = None,
     sort_by: str = 'time',
     only_form_advantage: bool = False,
-    skip_no_odds: bool = False
+    skip_no_odds: bool = False,
+    only_over_under: bool = False
 ):
     """
     Wysyła email z powiadomieniem o kwalifikujących się meczach
@@ -355,17 +625,28 @@ def send_email_notification(
         sort_by: Sortowanie: 'time' (godzina), 'wins' (wygrane), 'team' (alfabetycznie)
         only_form_advantage: Wysyłaj tylko mecze z przewagą formy gospodarzy (🔥)
         skip_no_odds: Pomijaj mecze bez kursów bukmacherskich
+        only_over_under: Wysyłaj tylko mecze z kwalifikującymi się statystykami O/U (💰)
     """
     
     # Wczytaj dane
     print(f"Wczytuje dane z: {csv_file}")
     df = pd.read_csv(csv_file, encoding='utf-8')
     
-    # Filtruj kwalifikujące się mecze
-    qualified = df[df['qualifies'] == True]
+    # OPCJA OVER/UNDER: Filtruj tylko mecze z O/U statistics
+    if only_over_under:
+        print("💰 TRYB: Tylko mecze z OVER/UNDER STATISTICS")
+        if 'ou_qualifies' in df.columns:
+            qualified = df[df['ou_qualifies'] == True]
+            print(f"   Znaleziono {len(qualified)} meczów z kwalifikującymi się statystykami O/U")
+        else:
+            print("   ⚠️ Brak kolumny 'ou_qualifies' w danych")
+            return
+    else:
+        # Standardowe filtrowanie po 'qualifies'
+        qualified = df[df['qualifies'] == True]
     
-    # OPCJA 1: Filtruj tylko mecze z przewagą formy
-    if only_form_advantage:
+    # OPCJA 1: Filtruj tylko mecze z przewagą formy (tylko dla standardowych meczów, nie O/U)
+    if only_form_advantage and not only_over_under:
         print("🔥 TRYB: Tylko mecze z PRZEWAGĄ FORMY (gospodarzy/gości)")
         if 'form_advantage' in qualified.columns:
             qualified = qualified[qualified['form_advantage'] == True]
@@ -431,16 +712,20 @@ def send_email_notification(
     date = datetime.now().strftime('%Y-%m-%d')
     
     if subject is None:
-        subject_parts = []
-        if only_form_advantage:
-            subject_parts.append("🔥 PRZEWAGA FORMY")
-        if skip_no_odds:
-            subject_parts.append("💰 Z KURSAMI")
-        
-        if subject_parts:
-            subject = f"{len(qualified)} meczów ({' + '.join(subject_parts)}) - {date}"
+        if only_over_under:
+            # Specjalny subject dla O/U
+            subject = f"💰 OVER/UNDER Statistics - {len(qualified)} meczów - {date}"
         else:
-            subject = f"{len(qualified)} kwalifikujacych sie meczow - {date}"
+            subject_parts = []
+            if only_form_advantage:
+                subject_parts.append("🔥 PRZEWAGA FORMY")
+            if skip_no_odds:
+                subject_parts.append("💰 Z KURSAMI")
+            
+            if subject_parts:
+                subject = f"{len(qualified)} meczów ({' + '.join(subject_parts)}) - {date}"
+            else:
+                subject = f"{len(qualified)} kwalifikujacych sie meczow - {date}"
     
     # Utwórz wiadomość
     msg = MIMEMultipart('alternative')
@@ -448,8 +733,25 @@ def send_email_notification(
     msg['From'] = from_email
     msg['To'] = to_email
     
-    # Dodaj treść HTML
-    html_content = create_html_email(matches, date, sort_by=sort_by)
+    # Dodaj treść HTML - wybierz odpowiedni template
+    if only_over_under:
+        # Wykryj sport z nazwy pliku CSV
+        sport = 'football'  # domyślnie
+        if 'basketball' in csv_file.lower() or 'koszykowka' in csv_file.lower():
+            sport = 'basketball'
+        elif 'volleyball' in csv_file.lower() or 'siatkowka' in csv_file.lower():
+            sport = 'volleyball'
+        elif 'handball' in csv_file.lower() or 'pilka-reczna' in csv_file.lower():
+            sport = 'handball'
+        elif 'hockey' in csv_file.lower() or 'hokej' in csv_file.lower():
+            sport = 'hockey'
+        elif 'tennis' in csv_file.lower() or 'tenis' in csv_file.lower():
+            sport = 'tennis'
+        
+        html_content = create_over_under_html_email(matches, date, sport=sport)
+    else:
+        html_content = create_html_email(matches, date, sort_by=sort_by)
+    
     html_part = MIMEText(html_content, 'html')
     msg.attach(html_part)
     

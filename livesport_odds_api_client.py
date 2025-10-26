@@ -191,6 +191,202 @@ class LiveSportOddsAPI:
         
         # Pobierz kursy dla tego event
         return self.get_odds_for_event(event_id)
+    
+    
+    def get_over_under_odds(self, event_id: str, sport: str = 'football') -> Optional[Dict]:
+        """
+        Pobiera kursy Over/Under dla wydarzenia
+        
+        Args:
+            event_id: ID wydarzenia z Livesport
+            sport: Sport ('football', 'basketball', 'handball', 'volleyball', 'hockey', 'tennis')
+        
+        Returns:
+            Słownik z kursami O/U:
+            {
+                'over_2_5': 1.85,
+                'under_2_5': 1.95,
+                'btts_yes': 1.75,  # tylko football
+                'btts_no': 2.05,   # tylko football
+                'line': '2.5',
+                'line_type': 'goals'
+            }
+        """
+        try:
+            # Parametry dla Over/Under
+            params = {
+                '_hash': 'ope2',
+                'eventId': event_id,
+                'bookmakerId': self.bookmaker_id,
+                'betType': 'OVER_UNDER',  # Typ zakładu O/U
+                'betScope': 'FULL_TIME'
+            }
+            
+            # GET request
+            response = self.session.get(
+                self.api_url,
+                params=params,
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                print(f"   ⚠️ API O/U ERROR {response.status_code}: {response.text[:200]}")
+                return None
+            
+            response.raise_for_status()
+            data = response.json()
+            
+            # Parsuj odpowiedź
+            if 'data' in data and 'findPrematchOddsForBookmaker' in data['data']:
+                odds_data = data['data']['findPrematchOddsForBookmaker']
+                
+                result = {
+                    'bookmaker_id': self.bookmaker_id,
+                    'bookmaker_name': self.bookmaker_names.get(self.bookmaker_id, 'Nordic Bet'),
+                    'source': 'livesport_api',
+                    'event_id': event_id
+                }
+                
+                # OVER odds
+                if 'over' in odds_data and odds_data['over']:
+                    over_value = odds_data['over'].get('value')
+                    line = odds_data['over'].get('line', '2.5')  # Linia O/U
+                    if over_value:
+                        result['over_odds'] = float(over_value)
+                        result['line'] = str(line)
+                
+                # UNDER odds
+                if 'under' in odds_data and odds_data['under']:
+                    under_value = odds_data['under'].get('value')
+                    if under_value:
+                        result['under_odds'] = float(under_value)
+                
+                # Typ linii zależy od sportu
+                if sport == 'football':
+                    result['line_type'] = 'goals'
+                elif sport in ['basketball', 'volleyball']:
+                    result['line_type'] = 'points'
+                elif sport in ['handball', 'hockey']:
+                    result['line_type'] = 'goals'
+                elif sport == 'tennis':
+                    result['line_type'] = 'sets'
+                
+                # Sprawdź czy mamy kursy
+                if result.get('over_odds') and result.get('under_odds'):
+                    return result
+            
+            return None
+        
+        except requests.exceptions.RequestException as e:
+            print(f"   ⚠️ Błąd API O/U request: {e}")
+            return None
+        
+        except (KeyError, ValueError, TypeError) as e:
+            print(f"   ⚠️ Błąd parsowania O/U: {e}")
+            return None
+    
+    
+    def get_btts_odds(self, event_id: str) -> Optional[Dict]:
+        """
+        Pobiera kursy BTTS (Both Teams To Score) dla piłki nożnej
+        
+        Returns:
+            {
+                'btts_yes': 1.75,
+                'btts_no': 2.05
+            }
+        """
+        try:
+            params = {
+                '_hash': 'ope2',
+                'eventId': event_id,
+                'bookmakerId': self.bookmaker_id,
+                'betType': 'BOTH_TEAMS_SCORE',
+                'betScope': 'FULL_TIME'
+            }
+            
+            response = self.session.get(
+                self.api_url,
+                params=params,
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                return None
+            
+            data = response.json()
+            
+            if 'data' in data and 'findPrematchOddsForBookmaker' in data['data']:
+                odds_data = data['data']['findPrematchOddsForBookmaker']
+                
+                result = {}
+                
+                # YES (obie drużyny strzelą)
+                if 'yes' in odds_data and odds_data['yes']:
+                    yes_value = odds_data['yes'].get('value')
+                    if yes_value:
+                        result['btts_yes'] = float(yes_value)
+                
+                # NO (przynajmniej jedna drużyna nie strzeli)
+                if 'no' in odds_data and odds_data['no']:
+                    no_value = odds_data['no'].get('value')
+                    if no_value:
+                        result['btts_no'] = float(no_value)
+                
+                if result.get('btts_yes') and result.get('btts_no'):
+                    return result
+            
+            return None
+        
+        except Exception as e:
+            print(f"   ⚠️ Błąd BTTS: {e}")
+            return None
+    
+    
+    def get_complete_odds(self, event_id: str, sport: str = 'football') -> Dict:
+        """
+        Pobiera WSZYSTKIE kursy dla wydarzenia (1X2 + O/U + BTTS)
+        
+        Returns:
+            {
+                # 1X2
+                'home_odds': 1.85,
+                'draw_odds': 3.50,
+                'away_odds': 4.20,
+                
+                # Over/Under
+                'over_odds': 1.85,
+                'under_odds': 1.95,
+                'ou_line': '2.5',
+                
+                # BTTS (tylko football)
+                'btts_yes': 1.75,
+                'btts_no': 2.05
+            }
+        """
+        result = {}
+        
+        # 1. Pobierz kursy 1X2
+        main_odds = self.get_odds_for_event(event_id)
+        if main_odds:
+            result.update(main_odds)
+        
+        # 2. Pobierz kursy O/U
+        ou_odds = self.get_over_under_odds(event_id, sport)
+        if ou_odds:
+            result['over_odds'] = ou_odds.get('over_odds')
+            result['under_odds'] = ou_odds.get('under_odds')
+            result['ou_line'] = ou_odds.get('line', '2.5')
+            result['ou_line_type'] = ou_odds.get('line_type', 'goals')
+        
+        # 3. Pobierz kursy BTTS (tylko dla football)
+        if sport == 'football':
+            btts_odds = self.get_btts_odds(event_id)
+            if btts_odds:
+                result['btts_yes'] = btts_odds.get('btts_yes')
+                result['btts_no'] = btts_odds.get('btts_no')
+        
+        return result
 
 
 # ============================================================================

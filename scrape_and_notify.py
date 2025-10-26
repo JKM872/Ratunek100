@@ -29,6 +29,7 @@ def scrape_and_send_email(
     app_api_key: str = None,
     only_form_advantage: bool = False,
     skip_no_odds: bool = False,
+    only_over_under: bool = False,
     away_team_focus: bool = False
 ):
     """
@@ -46,6 +47,7 @@ def scrape_and_send_email(
         sort_by: Sortowanie: 'time' (godzina), 'wins' (wygrane), 'team' (alfabetycznie)
         only_form_advantage: Wysyłaj tylko mecze z przewagą formy gospodarzy (🔥)
         skip_no_odds: Pomijaj mecze bez kursów bukmacherskich (💰)
+        only_over_under: Wysyłaj tylko mecze z OVER/UNDER statistics (💰)
         away_team_focus: Szukaj meczów gdzie GOŚCIE mają ≥60% H2H (zamiast gospodarzy) (🏃)
     """
     
@@ -289,7 +291,8 @@ def scrape_and_send_email(
                 subject=subject,
                 sort_by=sort_by,
                 only_form_advantage=only_form_advantage,
-                skip_no_odds=skip_no_odds
+                skip_no_odds=skip_no_odds,
+                only_over_under=only_over_under
             )
             
             print("\n✅ SUKCES! Email wysłany.")
@@ -415,6 +418,8 @@ WAŻNE dla Gmail:
                        help='🔥 Wyślij tylko mecze z PRZEWAGĄ FORMY gospodarzy/gości (przyspiesza proces)')
     parser.add_argument('--skip-no-odds', action='store_true',
                        help='💰 Pomijaj mecze BEZ KURSÓW bukmacherskich')
+    parser.add_argument('--only-over-under', action='store_true',
+                       help='💰 Wyślij tylko mecze z OVER/UNDER statistics (osobny mail)')
     parser.add_argument('--away-team-focus', action='store_true',
                        help='🏃 Szukaj meczów gdzie GOŚCIE mają >=60%% H2H (zamiast gospodarzy)')
     parser.add_argument('--app-url', default=None,
@@ -438,6 +443,7 @@ WAŻNE dla Gmail:
         app_api_key=args.app_api_key,
         only_form_advantage=args.only_form_advantage,
         skip_no_odds=args.skip_no_odds,
+        only_over_under=args.only_over_under,
         away_team_focus=args.away_team_focus
     )
     
