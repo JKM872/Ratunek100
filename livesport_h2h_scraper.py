@@ -1022,14 +1022,27 @@ def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: Beautiful
         # METODA 1: Szukaj na stronie H2H w sekcji z meczem (górna część strony)
         # Najpierw spróbuj znaleźć kontener z kursami używając Selenium
         try:
-            # Poczekaj na załadowanie kursów (max 2 sekundy)
-            odds_container = WebDriverWait(driver, 2).until(  # Zmniejszone z 3s na 2s
+            # GitHub Actions potrzebuje więcej czasu na załadowanie kursów
+            is_github = os.environ.get('GITHUB_ACTIONS') == 'true'
+            odds_timeout = 5 if is_github else 2  # GitHub: 5s, Lokalnie: 2s
+            
+            # Poczekaj na załadowanie kursów
+            odds_container = WebDriverWait(driver, odds_timeout).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 
                     "[class*='odds'], [class*='Odds'], [class*='bookmaker'], [class*='Bookmaker']"))
             )
-            time.sleep(0.3)  # Zmniejszone z 0.5s na 0.3s - Krótkie opóźnienie dla pełnego załadowania
+            
+            # GitHub Actions: dłuższe opóźnienie dla pełnego załadowania
+            sleep_time = 0.8 if is_github else 0.3
+            time.sleep(sleep_time)
+            
+            if VERBOSE:
+                print(f"   💰 DEBUG: Znaleziono kontener kursów (timeout: {odds_timeout}s)")
+                
         except (TimeoutException, NoSuchElementException):
-            # Kursy nie są dostępne
+            if VERBOSE:
+                print(f"   ⚠️ DEBUG: Timeout przy ładowaniu kursów (po {odds_timeout}s)")
+            # Kursy nie są dostępne - kontynuuj mimo to
             pass
         
         # METODA 2: Szukaj kursów OSOBNO dla gospodarzy i gości

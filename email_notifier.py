@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import List, Dict
 import pandas as pd
 from datetime import datetime
+import math  # dla sprawdzania NaN
 
 # Konfiguracja SMTP
 SMTP_CONFIG = {
@@ -262,7 +263,21 @@ def create_html_email(matches: List[Dict], date: str, sort_by: str = 'time') -> 
         odds_html = ''
         home_odds = match.get('home_odds')
         away_odds = match.get('away_odds')
-        if home_odds and away_odds:
+        
+        # POPRAWKA: Sprawdź czy kursy są liczbami (nie NaN/None)
+        # pandas NaN przechodzi przez `if home_odds and away_odds` i pokazuje się jako "nan"!
+        has_valid_odds = False
+        try:
+            if home_odds is not None and away_odds is not None:
+                # Sprawdź czy to liczby (nie NaN)
+                if not (pd.isna(home_odds) or pd.isna(away_odds)):
+                    # Dodatkowo sprawdź czy są w sensownym zakresie
+                    if 1.0 <= float(home_odds) <= 100.0 and 1.0 <= float(away_odds) <= 100.0:
+                        has_valid_odds = True
+        except (ValueError, TypeError):
+            pass
+        
+        if has_valid_odds:
             odds_html = f'''
                 <div class="match-details" style="background-color: #FFF9E6; padding: 8px; border-radius: 5px; margin-top: 8px;">
                     🎲 <strong>Kursy:</strong> {home} <span style="background-color: #FFD700; padding: 2px 6px; border-radius: 3px; font-weight: bold;">{home_odds:.2f}</span> | {away} <span style="background-color: #FFD700; padding: 2px 6px; border-radius: 3px; font-weight: bold;">{away_odds:.2f}</span>
