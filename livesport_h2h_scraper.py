@@ -618,8 +618,8 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
         out['qualifies'] = False
     
     # Kursy bukmacherskie - dodatkowa informacja (NIE wpływa na scoring!)
-    # NOWE: Przekaż URL aby użyć GraphQL API
-    odds = extract_betting_odds_with_selenium(driver, soup, url=url)
+    # UŻYWAMY PRAWDZIWEGO API LIVESPORT (odkrytego przez Selenium-Wire)
+    odds = extract_betting_odds_with_api(url)
     out['home_odds'] = odds.get('home_odds')
     out['away_odds'] = odds.get('away_odds')
 
@@ -1867,8 +1867,8 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
     out['form_b'] = extract_player_form_simple(soup, player_b, h2h)
     
     # 4. KURSY BUKMACHERSKIE - dodatkowa informacja (NIE wpływa na scoring!)
-    # NOWE: Przekaż URL aby użyć GraphQL API
-    odds = extract_betting_odds_with_selenium(driver, soup, url=url)
+    # UŻYWAMY PRAWDZIWEGO API LIVESPORT (odkrytego przez Selenium-Wire)
+    odds = extract_betting_odds_with_api(url)
     out['home_odds'] = odds.get('home_odds')
     out['away_odds'] = odds.get('away_odds')
     

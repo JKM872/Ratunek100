@@ -17,39 +17,34 @@ class LiveSportOddsAPI:
     
     def __init__(self, bookmaker_id: str = "165", geo_ip_code: str = "PL", geo_subdivision: str = "PL10"):
         """
-        Inicjalizuje klienta API
+        Inicjalizuje klienta API (DOKŁADNIE JAK W LIVESPORTSCRAPER)
         
         Args:
             bookmaker_id: ID bukmachera (domyślnie "165" = Nordic Bet)
-            geo_ip_code: Kod kraju (np. "PL", "GB", "DE")
-            geo_subdivision: Kod regionu (np. "PL10" dla Polski)
+            geo_ip_code: Kod kraju (nie używany w obecnej wersji)
+            geo_subdivision: Kod regionu (nie używany w obecnej wersji)
         """
         self.bookmaker_id = bookmaker_id
         self.geo_ip_code = geo_ip_code
         self.geo_subdivision = geo_subdivision
         
-        # Endpoint GraphQL API Livesport
-        self.api_url = "https://www.livesport.com/req/api/v2/configurator/data"
+        # PRAWDZIWY Endpoint GraphQL API Livesport
+        self.api_url = "https://global.ds.lsapp.eu/odds/pq_graphql"
         
-        # UWAGA: Jeśli 405 Method Not Allowed, spróbuj alternatywnego endpointa:
-        # self.api_url = "https://www.livesport.com/api/v1/odds"
+        # Stwórz session (jak w livesportscraper)
+        self.session = requests.Session()
         
-        # Nagłówki HTTP (symuluj prawdziwą przeglądarkę)
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Content-Type': 'application/json',
+        # Nagłówki HTTP (DOKŁADNIE JAK W LIVESPORTSCRAPER - linie 46-55)
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'pl-PL,pl;q=0.9,en;q=0.8',
             'Origin': 'https://www.livesport.com',
             'Referer': 'https://www.livesport.com/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
-            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua': '"Google Chrome";v="141", "Not A(Brand";v="8", "Chromium";v="141"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
-        }
+        })
         
         # Mapowanie ID bukmacherów (najczęściej używane)
         self.bookmaker_names = {
@@ -94,129 +89,71 @@ class LiveSportOddsAPI:
         """
         Pobiera kursy bukmacherskie dla konkretnego wydarzenia
         
+        UŻYWA PRAWDZIWEGO ENDPOINTA LIVESPORT (odkrytego przez Selenium-Wire)
+        
         Args:
             event_id: ID wydarzenia z Livesport (np. "KQAaF7d2")
         
         Returns:
-            Słownik z kursami:
-            {
-                'home_odds': 1.85,
-                'draw_odds': 3.50,  # Może być None dla sportów bez remisu
-                'away_odds': 4.20,
-                'bookmaker_id': '165',
-                'bookmaker_name': 'Nordic Bet',
-                'source': 'livesport_api'
-            }
-            lub None jeśli nie znaleziono kursów
+            Słownik z kursami lub None
         """
         
-        # GraphQL query dla kursów
-        query = {
-            "operationName": "getEventOdds",
-            "variables": {
-                "eventId": event_id,
-                "bookmakerId": self.bookmaker_id,
-                "geoIpCode": self.geo_ip_code,
-                "geoSubdivision": self.geo_subdivision
-            },
-            "query": """
-                query getEventOdds($eventId: String!, $bookmakerId: String!, $geoIpCode: String, $geoSubdivision: String) {
-                    event(id: $eventId) {
-                        id
-                        odds(
-                            bookmakerId: $bookmakerId
-                            geoIpCode: $geoIpCode
-                            geoSubdivision: $geoSubdivision
-                        ) {
-                            avgOdds {
-                                homeOdds
-                                drawOdds
-                                awayOdds
-                            }
-                            bookmaker {
-                                id
-                                name
-                            }
-                        }
-                    }
-                }
-            """
-        }
-        
         try:
-            # POPRAWKA: Spróbuj GET z parametrami zamiast POST
-            # LiveSport API może wymagać GET request z query parameters
+            # PRAWDZIWE parametry (DOKŁADNIE JAK W LIVESPORTSCRAPER - linie 149-155)
+            params = {
+                '_hash': 'ope2',  # Hash dla kursów ("odds per bookmaker")
+                'eventId': event_id,
+                'bookmakerId': self.bookmaker_id,  # 165 = Nordic Bet
+                'betType': 'HOME_DRAW_AWAY',  # Typ zakładu: 1X2
+                'betScope': 'FULL_TIME'  # Pełen czas (nie połowy)
+            }
             
-            # Metoda 1: Spróbuj POST (oryginalna)
-            try:
-                response = requests.post(
-                    self.api_url,
-                    json=query,
-                    headers=self.headers,
-                    timeout=10
-                )
-                
-                # Jeśli 405, spróbuj GET
-                if response.status_code == 405:
-                    raise ValueError("POST not allowed, trying GET")
-                    
-            except (requests.exceptions.RequestException, ValueError):
-                # Metoda 2: Spróbuj GET z prostszym endpointem
-                # Użyj bezpośredniego URL do kursów
-                simple_url = f"https://www.livesport.com/api/v1/event/{event_id}/odds"
-                
-                params = {
-                    'bookmakerId': self.bookmaker_id,
-                    'geoIpCode': self.geo_ip_code,
-                    'geoSubdivision': self.geo_subdivision
-                }
-                
-                response = requests.get(
-                    simple_url,
-                    params=params,
-                    headers=self.headers,
-                    timeout=10
-                )
+            # GET request do prawdziwego API (UŻYWAMY SESSION - linia 161)
+            response = self.session.get(
+                self.api_url,
+                params=params,
+                timeout=10
+            )
+            
+            # Sprawdź status
+            if response.status_code != 200:
+                print(f"   ⚠️ API ERROR {response.status_code}: {response.text[:200]}")
             
             response.raise_for_status()
+            data = response.json()
             
-            # DEBUG: Pokaż co API zwróciło
-            try:
-                data = response.json()
-            except ValueError as e:
-                print(f"   ⚠️ API zwróciło nieprawidłowy JSON: {e}")
-                print(f"   📄 Response text (pierwsze 200 znaków): {response.text[:200]}")
-                return None
-            
-            # Parsuj odpowiedź
-            if 'data' in data and 'event' in data['data'] and data['data']['event']:
-                event_data = data['data']['event']
+            # Parsuj odpowiedź (DOKŁADNIE JAK W LIVESPORTSCRAPER - linie 176-192)
+            if 'data' in data and 'findPrematchOddsForBookmaker' in data['data']:
+                odds_data = data['data']['findPrematchOddsForBookmaker']
                 
-                if 'odds' in event_data and event_data['odds']:
-                    odds_data = event_data['odds']
-                    avg_odds = odds_data.get('avgOdds', {})
-                    
-                    # Wydobądź kursy
-                    home_odds = avg_odds.get('homeOdds')
-                    draw_odds = avg_odds.get('drawOdds')  # Może być None
-                    away_odds = avg_odds.get('awayOdds')
-                    
-                    # Sprawdź czy mamy przynajmniej home i away
-                    if home_odds and away_odds:
-                        bookmaker_name = self.bookmaker_names.get(
-                            self.bookmaker_id,
-                            odds_data.get('bookmaker', {}).get('name', 'Unknown')
-                        )
-                        
-                        return {
-                            'home_odds': float(home_odds),
-                            'draw_odds': float(draw_odds) if draw_odds else None,
-                            'away_odds': float(away_odds),
-                            'bookmaker_id': self.bookmaker_id,
-                            'bookmaker_name': bookmaker_name,
-                            'source': 'livesport_api',
-                            'event_id': event_id
-                        }
+                result = {
+                    'bookmaker_id': self.bookmaker_id,
+                    'bookmaker_name': self.bookmaker_names.get(self.bookmaker_id, 'Nordic Bet'),
+                    'source': 'livesport_api',
+                    'event_id': event_id
+                }
+                
+                # HOME odds
+                if 'home' in odds_data and odds_data['home']:
+                    home_value = odds_data['home'].get('value')
+                    if home_value:
+                        result['home_odds'] = float(home_value)
+                
+                # DRAW odds (może nie istnieć dla niektórych sportów)
+                if 'draw' in odds_data and odds_data['draw']:
+                    draw_value = odds_data['draw'].get('value')
+                    if draw_value:
+                        result['draw_odds'] = float(draw_value)
+                
+                # AWAY odds
+                if 'away' in odds_data and odds_data['away']:
+                    away_value = odds_data['away'].get('value')
+                    if away_value:
+                        result['away_odds'] = float(away_value)
+                
+                # Sprawdź czy mamy przynajmniej home i away
+                if result.get('home_odds') and result.get('away_odds'):
+                    return result
             
             return None
         
