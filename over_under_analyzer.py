@@ -130,8 +130,19 @@ def count_points_basketball(results: List[Dict], line: float = 220.5) -> Dict:
     
     Args:
         line: Linia O/U (domyślnie 220.5)
+    
+    Returns:
+        {
+            'over_count': 4,
+            'under_count': 1,
+            'total_matches': 5,
+            'over_percentage': 80.0,
+            'under_percentage': 20.0,
+            'line': 220.5
+        }
     """
     over_count = 0
+    under_count = 0
     total = 0
     
     for match in results:
@@ -145,14 +156,25 @@ def count_points_basketball(results: List[Dict], line: float = 220.5) -> Dict:
         
         if total_points > line:
             over_count += 1
+        else:
+            under_count += 1
     
     if total == 0:
-        return {'over_count': 0, 'total_matches': 0, 'over_percentage': 0.0, 'line': line}
+        return {
+            'over_count': 0,
+            'under_count': 0,
+            'total_matches': 0,
+            'over_percentage': 0.0,
+            'under_percentage': 0.0,
+            'line': line
+        }
     
     return {
         'over_count': over_count,
+        'under_count': under_count,
         'total_matches': total,
         'over_percentage': round((over_count / total) * 100, 1),
+        'under_percentage': round((under_count / total) * 100, 1),
         'line': line
     }
 
@@ -165,6 +187,7 @@ def count_goals_handball_hockey(results: List[Dict], line: float = 55.5) -> Dict
         line: Linia O/U (55.5 dla handball, 5.5 dla hockey)
     """
     over_count = 0
+    under_count = 0
     total = 0
     
     for match in results:
@@ -178,14 +201,25 @@ def count_goals_handball_hockey(results: List[Dict], line: float = 55.5) -> Dict
         
         if total_goals > line:
             over_count += 1
+        else:
+            under_count += 1
     
     if total == 0:
-        return {'over_count': 0, 'total_matches': 0, 'over_percentage': 0.0, 'line': line}
+        return {
+            'over_count': 0,
+            'under_count': 0,
+            'total_matches': 0,
+            'over_percentage': 0.0,
+            'under_percentage': 0.0,
+            'line': line
+        }
     
     return {
         'over_count': over_count,
+        'under_count': under_count,
         'total_matches': total,
         'over_percentage': round((over_count / total) * 100, 1),
+        'under_percentage': round((under_count / total) * 100, 1),
         'line': line
     }
 
@@ -197,6 +231,7 @@ def count_sets_volleyball(results: List[Dict], line: float = 4.5) -> Dict:
     Wynik siatkówki często w formacie "3-1" (sety) lub "(25-23, 23-25, 25-20, 25-18)"
     """
     over_count = 0
+    under_count = 0
     total = 0
     
     for match in results:
@@ -210,14 +245,25 @@ def count_sets_volleyball(results: List[Dict], line: float = 4.5) -> Dict:
         
         if total_sets > line:
             over_count += 1
+        else:
+            under_count += 1
     
     if total == 0:
-        return {'over_count': 0, 'total_matches': 0, 'over_percentage': 0.0, 'line': line}
+        return {
+            'over_count': 0,
+            'under_count': 0,
+            'total_matches': 0,
+            'over_percentage': 0.0,
+            'under_percentage': 0.0,
+            'line': line
+        }
     
     return {
         'over_count': over_count,
+        'under_count': under_count,
         'total_matches': total,
         'over_percentage': round((over_count / total) * 100, 1),
+        'under_percentage': round((under_count / total) * 100, 1),
         'line': line
     }
 
@@ -230,6 +276,7 @@ def count_sets_tennis(results: List[Dict], line: float = 2.5) -> Dict:
         line: 2.5 dla Best of 3, 3.5 dla Best of 5
     """
     over_count = 0
+    under_count = 0
     total = 0
     
     for match in results:
@@ -243,14 +290,25 @@ def count_sets_tennis(results: List[Dict], line: float = 2.5) -> Dict:
         
         if total_sets > line:
             over_count += 1
+        else:
+            under_count += 1
     
     if total == 0:
-        return {'over_count': 0, 'total_matches': 0, 'over_percentage': 0.0, 'line': line}
+        return {
+            'over_count': 0,
+            'under_count': 0,
+            'total_matches': 0,
+            'over_percentage': 0.0,
+            'under_percentage': 0.0,
+            'line': line
+        }
     
     return {
         'over_count': over_count,
+        'under_count': under_count,
         'total_matches': total,
         'over_percentage': round((over_count / total) * 100, 1),
+        'under_percentage': round((under_count / total) * 100, 1),
         'line': line
     }
 
@@ -326,21 +384,39 @@ def analyze_basketball_over_under(h2h_results: List[Dict], home_form: List[Dict]
     home_stats = count_points_basketball(home_form, line)
     away_stats = count_points_basketball(away_form, line)
     
-    qualifies = (
+    # Sprawdź OVER
+    qualifies_over = (
         h2h_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         home_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         away_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100
     )
     
+    # Sprawdź UNDER
+    qualifies_under = (
+        h2h_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        home_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        away_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100
+    )
+    
+    # Rekomendacja
+    recommendation = None
+    if qualifies_over and not qualifies_under:
+        recommendation = 'OVER'
+    elif qualifies_under and not qualifies_over:
+        recommendation = 'UNDER'
+    # Jeśli oba lub żadne - brak rekomendacji
+    
     return {
-        'qualifies': qualifies,
+        'qualifies': qualifies_over or qualifies_under,
+        'recommendation': recommendation,
         'line': line,
         'line_type': 'points',
-        'h2h_percentage': h2h_stats['over_percentage'],
+        'h2h_over_percentage': h2h_stats['over_percentage'],
+        'h2h_under_percentage': h2h_stats['under_percentage'],
         'h2h_count': f"{h2h_stats['over_count']}/{h2h_stats['total_matches']}",
-        'home_percentage': home_stats['over_percentage'],
+        'home_percentage': home_stats['over_percentage'] if recommendation == 'OVER' else home_stats['under_percentage'],
         'home_count': f"{home_stats['over_count']}/{home_stats['total_matches']}",
-        'away_percentage': away_stats['over_percentage'],
+        'away_percentage': away_stats['over_percentage'] if recommendation == 'OVER' else away_stats['under_percentage'],
         'away_count': f"{away_stats['over_count']}/{away_stats['total_matches']}"
     }
 
@@ -353,50 +429,82 @@ def analyze_handball_over_under(h2h_results: List[Dict], home_form: List[Dict],
     home_stats = count_goals_handball_hockey(home_form, line)
     away_stats = count_goals_handball_hockey(away_form, line)
     
-    qualifies = (
+    # Sprawdź OVER
+    qualifies_over = (
         h2h_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         home_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         away_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100
     )
     
+    # Sprawdź UNDER
+    qualifies_under = (
+        h2h_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        home_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        away_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100
+    )
+    
+    # Rekomendacja
+    recommendation = None
+    if qualifies_over and not qualifies_under:
+        recommendation = 'OVER'
+    elif qualifies_under and not qualifies_over:
+        recommendation = 'UNDER'
+    
     return {
-        'qualifies': qualifies,
+        'qualifies': qualifies_over or qualifies_under,
+        'recommendation': recommendation,
         'line': line,
         'line_type': 'goals',
-        'h2h_percentage': h2h_stats['over_percentage'],
+        'h2h_over_percentage': h2h_stats['over_percentage'],
+        'h2h_under_percentage': h2h_stats['under_percentage'],
         'h2h_count': f"{h2h_stats['over_count']}/{h2h_stats['total_matches']}",
-        'home_percentage': home_stats['over_percentage'],
+        'home_percentage': home_stats['over_percentage'] if recommendation == 'OVER' else home_stats['under_percentage'],
         'home_count': f"{home_stats['over_count']}/{home_stats['total_matches']}",
-        'away_percentage': away_stats['over_percentage'],
+        'away_percentage': away_stats['over_percentage'] if recommendation == 'OVER' else away_stats['under_percentage'],
         'away_count': f"{away_stats['over_count']}/{away_stats['total_matches']}"
     }
 
 
 def analyze_volleyball_over_under(h2h_results: List[Dict], home_form: List[Dict],
-                                   away_form: List[Dict]) -> Dict:
+                                   away_form: List[Dict], line: float = 4.5) -> Dict:
     """Analizuje statystyki Over/Under dla siatkówki (sety)"""
-    
-    line = SPORT_LINES['volleyball']['sets']
     
     h2h_stats = count_sets_volleyball(h2h_results, line)
     home_stats = count_sets_volleyball(home_form, line)
     away_stats = count_sets_volleyball(away_form, line)
     
-    qualifies = (
+    # Sprawdź OVER
+    qualifies_over = (
         h2h_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         home_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         away_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100
     )
     
+    # Sprawdź UNDER
+    qualifies_under = (
+        h2h_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        home_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        away_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100
+    )
+    
+    # Rekomendacja
+    recommendation = None
+    if qualifies_over and not qualifies_under:
+        recommendation = 'OVER'
+    elif qualifies_under and not qualifies_over:
+        recommendation = 'UNDER'
+    
     return {
-        'qualifies': qualifies,
+        'qualifies': qualifies_over or qualifies_under,
+        'recommendation': recommendation,
         'line': line,
         'line_type': 'sets',
-        'h2h_percentage': h2h_stats['over_percentage'],
+        'h2h_over_percentage': h2h_stats['over_percentage'],
+        'h2h_under_percentage': h2h_stats['under_percentage'],
         'h2h_count': f"{h2h_stats['over_count']}/{h2h_stats['total_matches']}",
-        'home_percentage': home_stats['over_percentage'],
+        'home_percentage': home_stats['over_percentage'] if recommendation == 'OVER' else home_stats['under_percentage'],
         'home_count': f"{home_stats['over_count']}/{home_stats['total_matches']}",
-        'away_percentage': away_stats['over_percentage'],
+        'away_percentage': away_stats['over_percentage'] if recommendation == 'OVER' else away_stats['under_percentage'],
         'away_count': f"{away_stats['over_count']}/{away_stats['total_matches']}"
     }
 
@@ -409,21 +517,38 @@ def analyze_hockey_over_under(h2h_results: List[Dict], home_form: List[Dict],
     home_stats = count_goals_handball_hockey(home_form, line)
     away_stats = count_goals_handball_hockey(away_form, line)
     
-    qualifies = (
+    # Sprawdź OVER
+    qualifies_over = (
         h2h_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         home_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         away_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100
     )
     
+    # Sprawdź UNDER
+    qualifies_under = (
+        h2h_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        home_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        away_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100
+    )
+    
+    # Rekomendacja
+    recommendation = None
+    if qualifies_over and not qualifies_under:
+        recommendation = 'OVER'
+    elif qualifies_under and not qualifies_over:
+        recommendation = 'UNDER'
+    
     return {
-        'qualifies': qualifies,
+        'qualifies': qualifies_over or qualifies_under,
+        'recommendation': recommendation,
         'line': line,
         'line_type': 'goals',
-        'h2h_percentage': h2h_stats['over_percentage'],
+        'h2h_over_percentage': h2h_stats['over_percentage'],
+        'h2h_under_percentage': h2h_stats['under_percentage'],
         'h2h_count': f"{h2h_stats['over_count']}/{h2h_stats['total_matches']}",
-        'home_percentage': home_stats['over_percentage'],
+        'home_percentage': home_stats['over_percentage'] if recommendation == 'OVER' else home_stats['under_percentage'],
         'home_count': f"{home_stats['over_count']}/{home_stats['total_matches']}",
-        'away_percentage': away_stats['over_percentage'],
+        'away_percentage': away_stats['over_percentage'] if recommendation == 'OVER' else away_stats['under_percentage'],
         'away_count': f"{away_stats['over_count']}/{away_stats['total_matches']}"
     }
 
@@ -436,21 +561,38 @@ def analyze_tennis_over_under(h2h_results: List[Dict], player_a_form: List[Dict]
     player_a_stats = count_sets_tennis(player_a_form, line)
     player_b_stats = count_sets_tennis(player_b_form, line)
     
-    qualifies = (
+    # Sprawdź OVER
+    qualifies_over = (
         h2h_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         player_a_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
         player_b_stats['over_percentage'] >= OVER_UNDER_THRESHOLD * 100
     )
     
+    # Sprawdź UNDER
+    qualifies_under = (
+        h2h_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        player_a_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100 and
+        player_b_stats['under_percentage'] >= OVER_UNDER_THRESHOLD * 100
+    )
+    
+    # Rekomendacja
+    recommendation = None
+    if qualifies_over and not qualifies_under:
+        recommendation = 'OVER'
+    elif qualifies_under and not qualifies_over:
+        recommendation = 'UNDER'
+    
     return {
-        'qualifies': qualifies,
+        'qualifies': qualifies_over or qualifies_under,
+        'recommendation': recommendation,
         'line': line,
         'line_type': 'sets',
-        'h2h_percentage': h2h_stats['over_percentage'],
+        'h2h_over_percentage': h2h_stats['over_percentage'],
+        'h2h_under_percentage': h2h_stats['under_percentage'],
         'h2h_count': f"{h2h_stats['over_count']}/{h2h_stats['total_matches']}",
-        'player_a_percentage': player_a_stats['over_percentage'],
+        'player_a_percentage': player_a_stats['over_percentage'] if recommendation == 'OVER' else player_a_stats['under_percentage'],
         'player_a_count': f"{player_a_stats['over_count']}/{player_a_stats['total_matches']}",
-        'player_b_percentage': player_b_stats['over_percentage'],
+        'player_b_percentage': player_b_stats['over_percentage'] if recommendation == 'OVER' else player_b_stats['under_percentage'],
         'player_b_count': f"{player_b_stats['over_count']}/{player_b_stats['total_matches']}"
     }
 
@@ -489,7 +631,8 @@ def analyze_over_under(sport: str, h2h_results: List[Dict],
         return analyze_handball_over_under(h2h_results, home_form, away_form, line)
     
     elif sport == 'volleyball':
-        return analyze_volleyball_over_under(h2h_results, home_form, away_form)
+        line = kwargs.get('line', SPORT_LINES['volleyball']['sets'])
+        return analyze_volleyball_over_under(h2h_results, home_form, away_form, line)
     
     elif sport == 'hockey':
         line = kwargs.get('line', SPORT_LINES['hockey']['goals'])
