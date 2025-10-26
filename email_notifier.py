@@ -493,6 +493,7 @@ def create_over_under_html_email(matches: List[Dict], date: str, sport: str = 'f
         ou_line = match.get('ou_line', 'N/A')
         ou_line_type = match.get('ou_line_type', 'goals')
         ou_h2h_pct = match.get('ou_h2h_percentage', 0)
+        ou_recommendation = match.get('ou_recommendation', 'OVER')  # Domyślnie OVER
         
         over_odds = match.get('over_odds')
         under_odds = match.get('under_odds')
@@ -510,6 +511,10 @@ def create_over_under_html_email(matches: List[Dict], date: str, sport: str = 'f
             'games': 'gemów'
         }.get(ou_line_type, ou_line_type)
         
+        # Emoji dla rekomendacji
+        rec_emoji = '⬆️' if ou_recommendation == 'OVER' else '⬇️'
+        rec_text = f"{rec_emoji} {ou_recommendation}"
+        
         html += f"""
             <div class="match">
                 <div class="match-title">
@@ -519,10 +524,10 @@ def create_over_under_html_email(matches: List[Dict], date: str, sport: str = 'f
                 <a href="{url}" style="font-size: 12px; color: #667eea;">🔗 Zobacz mecz na Livesport</a>
                 
                 <div class="ou-section">
-                    <div class="ou-title">📊 Over {ou_line} {line_type_pl}</div>
+                    <div class="ou-title">📊 Linia: {ou_line} {line_type_pl} | Rekomendacja: {rec_text}</div>
                     <div class="stat-row">
                         <span class="stat-label">🔥 H2H (ostatnie 5 meczów):</span>
-                        <span class="stat-value">{ou_h2h_pct}% meczów OVER</span>
+                        <span class="stat-value">{ou_h2h_pct}% → {ou_recommendation}</span>
                     </div>
                 </div>
         """
@@ -535,17 +540,21 @@ def create_over_under_html_email(matches: List[Dict], date: str, sport: str = 'f
             valid_under = not pd.isna(under_odds) and 1.0 < under_odds < 100
             
             if valid_over and valid_under:
+                # Podkreśl rekomendowany kurs
+                over_style = 'font-weight: bold; color: #28a745; font-size: 24px;' if ou_recommendation == 'OVER' else 'color: #28a745; font-size: 20px;'
+                under_style = 'font-weight: bold; color: #28a745; font-size: 24px;' if ou_recommendation == 'UNDER' else 'color: #28a745; font-size: 20px;'
+                
                 html += f"""
                 <div class="odds-box">
                     <div class="odds-title">💰 KURSY (Nordic Bet):</div>
                     <div class="odds-row">
                         <div class="odds-item">
-                            <div class="odds-label">Over {ou_line}</div>
-                            <div class="odds-value">{over_odds}</div>
+                            <div class="odds-label">Over {ou_line} {'⬆️' if ou_recommendation == 'OVER' else ''}</div>
+                            <div class="odds-value" style="{over_style}">{over_odds}</div>
                         </div>
                         <div class="odds-item">
-                            <div class="odds-label">Under {ou_line}</div>
-                            <div class="odds-value">{under_odds}</div>
+                            <div class="odds-label">Under {ou_line} {'⬇️' if ou_recommendation == 'UNDER' else ''}</div>
+                            <div class="odds-value" style="{under_style}">{under_odds}</div>
                         </div>
                     </div>
                 </div>
