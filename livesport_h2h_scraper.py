@@ -618,9 +618,10 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
         out['qualifies'] = False
     
     # Kursy bukmacherskie - dodatkowa informacja (NIE wpływa na scoring!)
-    odds = extract_betting_odds_with_selenium(driver, soup)
-    out['home_odds'] = odds['home_odds']
-    out['away_odds'] = odds['away_odds']
+    # NOWE: Przekaż URL aby użyć GraphQL API
+    odds = extract_betting_odds_with_selenium(driver, soup, url=url)
+    out['home_odds'] = odds.get('home_odds')
+    out['away_odds'] = odds.get('away_odds')
 
     return out
 
@@ -1009,18 +1010,86 @@ def extract_team_form(soup: BeautifulSoup, driver: webdriver.Chrome, side: str, 
     return form[:5]
 
 
-def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: BeautifulSoup) -> Dict[str, Optional[float]]:
+def extract_betting_odds_with_api(url: str) -> Dict[str, Optional[float]]:
     """
-    Ekstraktuj kursy bukmacherskie dla meczu używając Selenium (dynamiczne ładowanie).
+    Ekstraktuj kursy bukmacherskie używając LiveSport GraphQL API (Nordic Bet).
+    
+    NOWA METODA - używa oficjalnego API zamiast scrapowania HTML!
+    
+    Args:
+        url: URL meczu z Livesport
+    
+    Returns:
+        {'home_odds': 1.85, 'away_odds': 2.10, 'draw_odds': 3.50} lub {'home_odds': None, 'away_odds': None}
+    """
+    try:
+        from livesport_odds_api_client import LiveSportOddsAPI
+        
+        # Inicjalizuj klienta API (Nordic Bet = 165)
+        client = LiveSportOddsAPI(bookmaker_id="165", geo_ip_code="PL")
+        
+        # Pobierz kursy przez API
+        odds = client.get_odds_from_url(url)
+        
+        if odds:
+            if VERBOSE:
+                print(f"   💰 API: Pobrano kursy z {odds['bookmaker_name']}")
+                print(f"      Home: {odds['home_odds']}, Away: {odds['away_odds']}")
+            
+            return {
+                'home_odds': odds['home_odds'],
+                'away_odds': odds['away_odds'],
+                'draw_odds': odds.get('draw_odds')  # Może być None dla niektórych sportów
+            }
+        else:
+            if VERBOSE:
+                print(f"   ⚠️ API: Brak kursów dla tego meczu")
+            return {'home_odds': None, 'away_odds': None}
+    
+    except ImportError:
+        print(f"   ⚠️ Błąd: Brak modułu livesport_odds_api_client.py")
+        print(f"      Pobierz z: https://github.com/[repo]/livesport_odds_api_client.py")
+        return {'home_odds': None, 'away_odds': None}
+    
+    except Exception as e:
+        if VERBOSE:
+            print(f"   ⚠️ API Error: {e}")
+        return {'home_odds': None, 'away_odds': None}
+
+
+def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: BeautifulSoup, url: str = None) -> Dict[str, Optional[float]]:
+    """
+    Ekstraktuj kursy bukmacherskie dla meczu.
+    
+    METODA 1 (PREFEROWANA): Używa LiveSport GraphQL API (Nordic Bet)
+    METODA 2 (FALLBACK): Scrapowanie HTML (często nie działa)
+    
+    Args:
+        driver: Selenium WebDriver
+        soup: BeautifulSoup parsed HTML
+        url: URL meczu (potrzebny dla API)
     
     Returns:
         {'home_odds': 1.85, 'away_odds': 2.10} lub {'home_odds': None, 'away_odds': None}
     """
+    # METODA 1: Spróbuj przez API (SZYBKIE I NIEZAWODNE!)
+    if url:
+        if VERBOSE:
+            print(f"   💰 Próbuję pobrać kursy przez GraphQL API...")
+        
+        api_odds = extract_betting_odds_with_api(url)
+        
+        if api_odds and api_odds.get('home_odds') and api_odds.get('away_odds'):
+            return api_odds
+        else:
+            if VERBOSE:
+                print(f"   ⚠️ API nie zwróciło kursów, próbuję fallback (HTML scraping)...")
+    
+    # METODA 2: FALLBACK - stare scrapowanie HTML (często nie działa)
     try:
         odds_data = {'home_odds': None, 'away_odds': None}
         
-        # METODA 1: Szukaj na stronie H2H w sekcji z meczem (górna część strony)
-        # Najpierw spróbuj znaleźć kontener z kursami używając Selenium
+        # Spróbuj znaleźć kontener z kursami w HTML
         try:
             # GitHub Actions potrzebuje więcej czasu na załadowanie kursów
             is_github = os.environ.get('GITHUB_ACTIONS') == 'true'
@@ -1037,13 +1106,13 @@ def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: Beautiful
             time.sleep(sleep_time)
             
             if VERBOSE:
-                print(f"   💰 DEBUG: Znaleziono kontener kursów (timeout: {odds_timeout}s)")
+                print(f"   💰 DEBUG: Znaleziono kontener kursów w HTML (timeout: {odds_timeout}s)")
                 
         except (TimeoutException, NoSuchElementException):
             if VERBOSE:
-                print(f"   ⚠️ DEBUG: Timeout przy ładowaniu kursów (po {odds_timeout}s)")
-            # Kursy nie są dostępne - kontynuuj mimo to
-            pass
+                print(f"   ⚠️ DEBUG: Timeout przy ładowaniu kursów z HTML (po {odds_timeout}s)")
+            # Kursy nie są dostępne - zwróć None
+            return {'home_odds': None, 'away_odds': None}
         
         # METODA 2: Szukaj kursów OSOBNO dla gospodarzy i gości
         try:
@@ -1798,9 +1867,10 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
     out['form_b'] = extract_player_form_simple(soup, player_b, h2h)
     
     # 4. KURSY BUKMACHERSKIE - dodatkowa informacja (NIE wpływa na scoring!)
-    odds = extract_betting_odds_with_selenium(driver, soup)
-    out['home_odds'] = odds['home_odds']
-    out['away_odds'] = odds['away_odds']
+    # NOWE: Przekaż URL aby użyć GraphQL API
+    odds = extract_betting_odds_with_selenium(driver, soup, url=url)
+    out['home_odds'] = odds.get('home_odds')
+    out['away_odds'] = odds.get('away_odds')
     
     # ===================================================================
     # ADVANCED SCORING: Multi-factor analysis
