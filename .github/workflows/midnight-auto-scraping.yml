@@ -37,9 +37,12 @@ jobs:
     
     - name: ⚽ Run Football Scraping
       run: |
-        TODAY=$(date +%Y-%m-%d)
+        # Użyj timezone polskiego (Europe/Warsaw) zamiast UTC
+        TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Football dla daty: $TODAY"
         
+        # Mail 1: Zdarzenia z przewagą formy + kursy
+        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports football \
@@ -47,7 +50,24 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort time
+          --sort time \
+          --only-form-advantage \
+          --skip-no-odds
+        
+        # Poczekaj 5 sekund między mailami
+        sleep 5
+        
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports football \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --skip-no-odds
       
       env:
         DISPLAY: ':99'
@@ -88,9 +108,12 @@ jobs:
     
     - name: 🏀 Run Basketball Scraping
       run: |
-        TODAY=$(date +%Y-%m-%d)
+        # Użyj timezone polskiego (Europe/Warsaw) zamiast UTC
+        TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Basketball dla daty: $TODAY"
         
+        # Mail 1: Zdarzenia z przewagą formy + kursy
+        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports basketball \
@@ -98,7 +121,24 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort time
+          --sort time \
+          --only-form-advantage \
+          --skip-no-odds
+        
+        # Poczekaj 5 sekund między mailami
+        sleep 5
+        
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports basketball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --skip-no-odds
       
       env:
         DISPLAY: ':99'
@@ -139,9 +179,12 @@ jobs:
     
     - name: 🤾 Run Handball Scraping
       run: |
-        TODAY=$(date +%Y-%m-%d)
+        # Użyj timezone polskiego (Europe/Warsaw) zamiast UTC
+        TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Handball dla daty: $TODAY"
         
+        # Mail 1: Zdarzenia z przewagą formy + kursy
+        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports handball \
@@ -149,7 +192,24 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort time
+          --sort time \
+          --only-form-advantage \
+          --skip-no-odds
+        
+        # Poczekaj 5 sekund między mailami
+        sleep 5
+        
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports handball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --skip-no-odds
       
       env:
         DISPLAY: ':99'
@@ -190,9 +250,12 @@ jobs:
     
     - name: 🏐 Run Volleyball Scraping
       run: |
-        TODAY=$(date +%Y-%m-%d)
+        # Użyj timezone polskiego (Europe/Warsaw) zamiast UTC
+        TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Volleyball dla daty: $TODAY"
         
+        # Mail 1: Zdarzenia z przewagą formy + kursy
+        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports volleyball \
@@ -200,7 +263,24 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort time
+          --sort time \
+          --only-form-advantage \
+          --skip-no-odds
+        
+        # Poczekaj 5 sekund między mailami
+        sleep 5
+        
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports volleyball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --skip-no-odds
       
       env:
         DISPLAY: ':99'
@@ -241,9 +321,12 @@ jobs:
     
     - name: 🏒 Run Hockey Scraping
       run: |
-        TODAY=$(date +%Y-%m-%d)
+        # Użyj timezone polskiego (Europe/Warsaw) zamiast UTC
+        TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Hockey dla daty: $TODAY"
         
+        # Mail 1: Zdarzenia z przewagą formy + kursy
+        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports hockey \
@@ -251,7 +334,24 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort time
+          --sort time \
+          --only-form-advantage \
+          --skip-no-odds
+        
+        # Poczekaj 5 sekund między mailami
+        sleep 5
+        
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports hockey \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --skip-no-odds
       
       env:
         DISPLAY: ':99'
@@ -292,9 +392,13 @@ jobs:
     
     - name: 🎾 Run Tennis Scraping
       run: |
-        TODAY=$(date +%Y-%m-%d)
+        # Użyj timezone polskiego (Europe/Warsaw) zamiast UTC
+        TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Tennis dla daty: $TODAY"
         
+        # Tennis używa advanced scoring - wysyłamy tylko jeden mail z kursami
+        # (nie ma sensu filtrować po "przewadze formy" w tenisie)
+        echo "📧 Wysyłam zdarzenia tenisowe z kursami..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports tennis \
@@ -302,7 +406,8 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort time
+          --sort time \
+          --skip-no-odds
       
       env:
         DISPLAY: ':99'

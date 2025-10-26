@@ -1826,6 +1826,14 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
         surface_stats_a = calculate_surface_stats_from_h2h(h2h, player_a, out['surface'], out['ranking_a'])
         surface_stats_b = calculate_surface_stats_from_h2h(h2h, player_b, out['surface'], out['ranking_b'])
         
+        # DEBUG: Sprawdź czy mamy dane
+        if VERBOSE:
+            print(f"   🔍 DEBUG Tennis Analysis:")
+            print(f"      H2H matches: {len(h2h_matches)}")
+            print(f"      Form A: {len(form_a_v3)}, Form B: {len(form_b_v3)}")
+            print(f"      Surface: {out['surface']}")
+            print(f"      Rankings: A={out['ranking_a']}, B={out['ranking_b']}")
+        
         # Analiza V3
         analysis = analyzer.analyze_match(
             player_a=player_a or 'Player A',
@@ -1843,13 +1851,45 @@ def process_match_tennis(url: str, driver: webdriver.Chrome) -> Dict:
         out['advanced_score'] = abs(analysis['total_score'])  # Zawsze wartość bezwzględna
         out['qualifies'] = analysis['qualifies']
         out['score_breakdown'] = analysis['breakdown']
-        out['favorite'] = analysis['details'].get('favorite', 'unknown')  # Kto jest faworytem
+        
+        # POPRAWKA: Określ faworyta bardziej precyzyjnie
+        favorite_key = analysis['details'].get('favorite', 'unknown')
+        
+        # Jeśli scoring = 0 lub favorite = 'even', określ faworyta na podstawie H2H
+        if out['advanced_score'] == 0 or favorite_key == 'even':
+            if player_a_wins > player_b_wins:
+                out['favorite'] = 'player_a'
+            elif player_b_wins > player_a_wins:
+                out['favorite'] = 'player_b'
+            else:
+                out['favorite'] = 'even'  # Naprawdę równi
+        else:
+            out['favorite'] = favorite_key
+        
+        if VERBOSE:
+            print(f"   ✅ Advanced scoring: {out['advanced_score']:.1f}/100")
+            print(f"   ✅ Favorite: {out['favorite']}")
+            print(f"   ✅ Qualifies: {out['qualifies']}")
         
     except Exception as e:
         # Fallback do prostej logiki jeśli advanced analysis nie działa
-        print(f"   ⚠️ Advanced analysis error: {e}, using basic logic")
+        import traceback
+        print(f"   ⚠️ Advanced analysis error: {e}")
+        if VERBOSE:
+            print(f"   📋 Full traceback:")
+            traceback.print_exc()
+        
+        # Użyj podstawowej logiki
         out['qualifies'] = (player_a_wins >= 1 and player_a_wins > player_b_wins)
         out['advanced_score'] = 0.0
+        
+        # Określ faworyta na podstawie H2H
+        if player_a_wins > player_b_wins:
+            out['favorite'] = 'player_a'
+        elif player_b_wins > player_a_wins:
+            out['favorite'] = 'player_b'
+        else:
+            out['favorite'] = 'even'
 
     return out
 

@@ -39,9 +39,12 @@ jobs:
     
     - name: 🏐 Run Volleyball Scraping
       run: |
-        TODAY=$(date +%Y-%m-%d)
+        # Użyj timezone polskiego (Europe/Warsaw) zamiast UTC
+        TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping dla daty: $TODAY"
         
+        # Mail 1: Zdarzenia z przewagą formy + kursy
+        echo "📧 Wysyłam mail 1/2: Zdarzenia z PRZEWAGĄ FORMY..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports volleyball \
@@ -49,7 +52,24 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
-          --sort time
+          --sort time \
+          --only-form-advantage \
+          --skip-no-odds
+        
+        # Poczekaj 5 sekund między mailami
+        sleep 5
+        
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        echo "📧 Wysyłam mail 2/2: Wszystkie kwalifikujące się..."
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports volleyball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --skip-no-odds
       
       env:
         # Zmienne środowiskowe dla Selenium
