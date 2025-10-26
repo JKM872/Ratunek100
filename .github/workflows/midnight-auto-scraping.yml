@@ -77,8 +77,29 @@ jobs:
           --sort time \
           --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
+        # Poczekaj 10 sekund przed Mail 3
         echo ""
-        echo "✅ Football scraping zakończony!"
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 3..."
+        sleep 10
+        
+        # Mail 3: Over/Under Statistics
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 3/3: OVER/UNDER STATISTICS"
+        echo "═══════════════════════════════════════════════════════════"
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports football \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --only-over-under \
+          --skip-no-odds || echo "⚠️ Mail 3 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Football scraping zakończony (3 maile wysłane)!"
       
       env:
         DISPLAY: ':99'
@@ -159,8 +180,26 @@ jobs:
           --sort time \
           --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
+        # Mail 3: Over/Under Statistics
         echo ""
-        echo "✅ Basketball scraping zakończony!"
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 3..."
+        sleep 10
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 3/3: OVER/UNDER STATISTICS"
+        echo "═══════════════════════════════════════════════════════════"
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports basketball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --only-over-under \
+          --skip-no-odds || echo "⚠️ Mail 3 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Basketball scraping zakończony (3 maile)!"
       
       env:
         DISPLAY: ':99'
@@ -241,8 +280,26 @@ jobs:
           --sort time \
           --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
+        # Mail 3: Over/Under Statistics
         echo ""
-        echo "✅ Handball scraping zakończony!"
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 3..."
+        sleep 10
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 3/3: OVER/UNDER STATISTICS"
+        echo "═══════════════════════════════════════════════════════════"
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports handball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --only-over-under \
+          --skip-no-odds || echo "⚠️ Mail 3 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Handball scraping zakończony (3 maile)!"
       
       env:
         DISPLAY: ':99'
@@ -323,8 +380,26 @@ jobs:
           --sort time \
           --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
+        # Mail 3: Over/Under Statistics
         echo ""
-        echo "✅ Volleyball scraping zakończony!"
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 3..."
+        sleep 10
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 3/3: OVER/UNDER STATISTICS"
+        echo "═══════════════════════════════════════════════════════════"
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports volleyball \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --only-over-under \
+          --skip-no-odds || echo "⚠️ Mail 3 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Volleyball scraping zakończony (3 maile)!"
       
       env:
         DISPLAY: ':99'
@@ -405,8 +480,26 @@ jobs:
           --sort time \
           --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
+        # Mail 3: Over/Under Statistics
         echo ""
-        echo "✅ Hockey scraping zakończony!"
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 3..."
+        sleep 10
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 3/3: OVER/UNDER STATISTICS"
+        echo "═══════════════════════════════════════════════════════════"
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports hockey \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --only-over-under \
+          --skip-no-odds || echo "⚠️ Mail 3 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Hockey scraping zakończony (3 maile)!"
       
       env:
         DISPLAY: ':99'
@@ -451,9 +544,8 @@ jobs:
         TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Tennis dla daty: $TODAY"
         
-        # Tennis używa advanced scoring - wysyłamy tylko jeden mail z kursami
-        # (nie ma sensu filtrować po "przewadze formy" w tenisie)
-        echo "📧 Wysyłam zdarzenia tenisowe z kursami..."
+        # Mail 1: Standard kwalifikujące (advanced scoring)
+        echo "📧 MAIL 1/2: Zdarzenia tenisowe z kursami..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports tennis \
@@ -462,7 +554,28 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds
+          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
+        
+        # Mail 2: Over/Under Statistics (setów)
+        echo ""
+        echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
+        sleep 10
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📧 MAIL 2/2: OVER/UNDER STATISTICS (sety)"
+        echo "═══════════════════════════════════════════════════════════"
+        python scrape_and_notify.py \
+          --date $TODAY \
+          --sports tennis \
+          --to jakub.majka.zg@gmail.com \
+          --from-email jakub.majka.zg@gmail.com \
+          --password "${{ secrets.EMAIL_PASSWORD }}" \
+          --headless \
+          --sort time \
+          --only-over-under \
+          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+        
+        echo ""
+        echo "✅ Tennis scraping zakończony (2 maile)!"
       
       env:
         DISPLAY: ':99'
