@@ -621,10 +621,13 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
         out['qualifies'] = False
     
     # Kursy bukmacherskie - dodatkowa informacja (NIE wpływa na scoring!)
-    # UŻYWAMY PRAWDZIWEGO API LIVESPORT (odkrytego przez Selenium-Wire)
-    odds = extract_betting_odds_with_api(url)
+    # UŻYWAMY PRAWDZIWEGO API LIVESPORT z MULTI-BOOKMAKER SUPPORT!
+    odds = extract_betting_odds_with_api(url, use_multi_bookmaker=True)  # V2: Wielu bukmacherów
     out['home_odds'] = odds.get('home_odds')
     out['away_odds'] = odds.get('away_odds')
+    out['bookmakers_found'] = odds.get('bookmakers_found', [])  # NOWE
+    out['best_home_bookmaker'] = odds.get('best_home_bookmaker')  # NOWE
+    out['best_away_bookmaker'] = odds.get('best_away_bookmaker')  # NOWE
     
     # ===================================================================
     # ANALIZA OVER/UNDER - Statystyki bramek/punktów
@@ -1110,51 +1113,134 @@ def extract_team_form(soup: BeautifulSoup, driver: webdriver.Chrome, side: str, 
     return form[:5]
 
 
-def extract_betting_odds_with_api(url: str) -> Dict[str, Optional[float]]:
+def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) -> Dict[str, Optional[float]]:
     """
-    Ekstraktuj kursy bukmacherskie używając LiveSport GraphQL API (Nordic Bet).
+    Ekstraktuj kursy bukmacherskie używając LiveSport GraphQL API.
     
-    NOWA METODA - używa oficjalnego API zamiast scrapowania HTML!
+    NOWA WERSJA V2 - obsługuje wielu bukmacherów!
+    - Próbuje NordicBet (165), STS (167), Bet365 (16), Betclic (170), itp.
+    - Zwraca najlepsze kursy ze wszystkich źródeł
+    - Retry mechanism z backoff
     
     Args:
         url: URL meczu z Livesport
+        use_multi_bookmaker: Jeśli True, próbuje wielu bukmacherów (wolniejsze ale lepsze pokrycie)
     
     Returns:
-        {'home_odds': 1.85, 'away_odds': 2.10, 'draw_odds': 3.50} lub {'home_odds': None, 'away_odds': None}
+        {
+            'home_odds': 1.85, 
+            'away_odds': 2.10, 
+            'draw_odds': 3.50,
+            'bookmakers_found': ['NordicBet', 'STS'],  # NOWE
+            'best_home_bookmaker': 'STS',  # NOWE
+            'best_away_bookmaker': 'NordicBet'  # NOWE
+        }
     """
     try:
         from livesport_odds_api_client import LiveSportOddsAPI
         
-        # Inicjalizuj klienta API (Nordic Bet = 165)
-        client = LiveSportOddsAPI(bookmaker_id="165", geo_ip_code="PL")
+        # Lista bukmacherów do sprawdzenia (w kolejności priorytetu)
+        bookmakers_to_try = [
+            ("165", "NordicBet"),
+            ("167", "STS"),
+            ("16", "Bet365"),
+            ("170", "Betclic"),
+            ("171", "Fortuna"),
+            ("172", "Superbet"),
+        ]
         
-        # Pobierz kursy przez API
-        odds = client.get_odds_from_url(url)
+        if not use_multi_bookmaker:
+            # Tylko NordicBet (stara metoda - szybka)
+            bookmakers_to_try = [("165", "NordicBet")]
         
-        if odds:
+        result = {
+            'home_odds': None,
+            'away_odds': None,
+            'draw_odds': None,
+            'bookmakers_found': [],
+            'best_home_bookmaker': None,
+            'best_away_bookmaker': None,
+            'all_odds': {}  # {bookmaker_name: {home, away, draw}}
+        }
+        
+        best_home = 0
+        best_away = 0
+        
+        for bm_id, bm_name in bookmakers_to_try:
+            try:
+                # Inicjalizuj klienta dla tego bukmachera
+                client = LiveSportOddsAPI(bookmaker_id=bm_id, geo_ip_code="PL")
+                
+                # Pobierz kursy z retry (max 2 próby)
+                odds = None
+                for attempt in range(2):
+                    try:
+                        odds = client.get_odds_from_url(url)
+                        if odds and (odds.get('home_odds') or odds.get('away_odds')):
+                            break
+                        if attempt == 0:
+                            time.sleep(0.5)  # Krótka przerwa przed retry
+                    except:
+                        if attempt == 0:
+                            time.sleep(0.8)
+                        continue
+                
+                if odds and (odds.get('home_odds') or odds.get('away_odds')):
+                    result['bookmakers_found'].append(bm_name)
+                    result['all_odds'][bm_name] = {
+                        'home': odds.get('home_odds'),
+                        'away': odds.get('away_odds'),
+                        'draw': odds.get('draw_odds')
+                    }
+                    
+                    # Sprawdź czy to najlepsze kursy
+                    if odds.get('home_odds') and odds['home_odds'] > best_home:
+                        best_home = odds['home_odds']
+                        result['home_odds'] = odds['home_odds']
+                        result['best_home_bookmaker'] = bm_name
+                    
+                    if odds.get('away_odds') and odds['away_odds'] > best_away:
+                        best_away = odds['away_odds']
+                        result['away_odds'] = odds['away_odds']
+                        result['best_away_bookmaker'] = bm_name
+                    
+                    # Draw odds - weź pierwszy dostępny
+                    if odds.get('draw_odds') and not result['draw_odds']:
+                        result['draw_odds'] = odds['draw_odds']
+                    
+                    if VERBOSE:
+                        print(f"   💰 {bm_name}: H={odds.get('home_odds')} A={odds.get('away_odds')}")
+                
+                # Krótka przerwa między bukmacherami (rate limiting)
+                if use_multi_bookmaker:
+                    time.sleep(0.15)
+                
+            except Exception as e:
+                if VERBOSE:
+                    print(f"   ⚠️ {bm_name} error: {e}")
+                continue
+        
+        if result['bookmakers_found']:
             if VERBOSE:
-                print(f"   💰 API: Pobrano kursy z {odds['bookmaker_name']}")
-                print(f"      Home: {odds['home_odds']}, Away: {odds['away_odds']}")
-            
-            return {
-                'home_odds': odds['home_odds'],
-                'away_odds': odds['away_odds'],
-                'draw_odds': odds.get('draw_odds')  # Może być None dla niektórych sportów
-            }
+                bookmaker_list = ', '.join(result['bookmakers_found'])
+                print(f"   ✅ Kursy z {len(result['bookmakers_found'])} bukmacherów: {bookmaker_list}")
+                if result['home_odds'] and result['away_odds']:
+                    print(f"      Najlepsze: H={result['home_odds']} ({result['best_home_bookmaker']}), "
+                          f"A={result['away_odds']} ({result['best_away_bookmaker']})")
+            return result
         else:
             if VERBOSE:
-                print(f"   ⚠️ API: Brak kursów dla tego meczu")
-            return {'home_odds': None, 'away_odds': None}
+                print(f"   ⚠️ API: Brak kursów od żadnego bukmachera")
+            return result
     
     except ImportError:
         print(f"   ⚠️ Błąd: Brak modułu livesport_odds_api_client.py")
-        print(f"      Pobierz z: https://github.com/[repo]/livesport_odds_api_client.py")
-        return {'home_odds': None, 'away_odds': None}
+        return {'home_odds': None, 'away_odds': None, 'bookmakers_found': []}
     
     except Exception as e:
         if VERBOSE:
             print(f"   ⚠️ API Error: {e}")
-        return {'home_odds': None, 'away_odds': None}
+        return {'home_odds': None, 'away_odds': None, 'bookmakers_found': []}
 
 
 def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: BeautifulSoup, url: str = None) -> Dict[str, Optional[float]]:
@@ -1768,14 +1854,30 @@ def calculate_surface_stats_from_h2h(
         for surf in surfaces:
             stats[surf] = max(0.30, min(0.98, stats[surf] + micro_variation))
         
-        return stats
+        # NAPRAWA: Zwróć w formacie wymaganym przez tennis_advanced_v3
+        # Zamiast {'clay': 0.75} zwróć {'clay': {'wins': X, 'losses': Y, 'win_rate': 0.75}}
+        formatted_stats = {}
+        for surf, win_rate in stats.items():
+            # Symuluj wins/losses na podstawie win_rate (np. 10 meczów)
+            estimated_total = 10
+            estimated_wins = int(win_rate * estimated_total)
+            estimated_losses = estimated_total - estimated_wins
+            
+            formatted_stats[surf] = {
+                'wins': estimated_wins,
+                'losses': estimated_losses,
+                'win_rate': win_rate,
+                'total': estimated_total
+            }
+        
+        return formatted_stats
     
     except Exception:
-        # Fallback: przeciętne wartości z małą wariację
+        # Fallback: przeciętne wartości z małą wariację w poprawnym formacie
         return {
-            'clay': 0.62,
-            'grass': 0.68,
-            'hard': 0.65
+            'clay': {'wins': 6, 'losses': 4, 'win_rate': 0.62, 'total': 10},
+            'grass': {'wins': 7, 'losses': 3, 'win_rate': 0.68, 'total': 10},
+            'hard': {'wins': 6, 'losses': 4, 'win_rate': 0.65, 'total': 10}
         }
 
 

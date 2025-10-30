@@ -2,9 +2,7 @@ name: Midnight Auto Scraping (All Sports)
 
 on:
   schedule:
-    # Codziennie o 22:00 UTC = 00:00 czasu polskiego (UTC+2 latem)
-    # Zbiera mecze NA KOLEJNY DZIEŃ (np. o północy 25.10 zbiera na 25.10)
-    - cron: '0 22 * * *'
+  - cron: '0 0 * * *'
   
   # Możliwość ręcznego uruchomienia (zakładka Actions na GitHub)
   workflow_dispatch:

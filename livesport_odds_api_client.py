@@ -118,13 +118,29 @@ class LiveSportOddsAPI:
             # Sprawdź status
             if response.status_code != 200:
                 print(f"   ⚠️ API ERROR {response.status_code}: {response.text[:200]}")
+                return None
             
-            response.raise_for_status()
-            data = response.json()
+            # Parsuj JSON
+            try:
+                data = response.json()
+            except (ValueError, TypeError) as json_err:
+                print(f"   ⚠️ Błąd parsowania JSON: {json_err}")
+                return None
+            
+            # Sprawdź czy data nie jest None
+            if not data:
+                return None
+            
+            if not isinstance(data, dict):
+                return None
             
             # Parsuj odpowiedź (DOKŁADNIE JAK W LIVESPORTSCRAPER - linie 176-192)
-            if 'data' in data and 'findPrematchOddsForBookmaker' in data['data']:
+            if isinstance(data, dict) and 'data' in data and isinstance(data.get('data'), dict) and 'findPrematchOddsForBookmaker' in data['data']:
                 odds_data = data['data']['findPrematchOddsForBookmaker']
+                
+                # KLUCZOWE: Sprawdź czy odds_data nie jest None!
+                if not odds_data or not isinstance(odds_data, dict):
+                    return None
                 
                 result = {
                     'bookmaker_id': self.bookmaker_id,
@@ -233,12 +249,27 @@ class LiveSportOddsAPI:
                 print(f"   ⚠️ API O/U ERROR {response.status_code}: {response.text[:200]}")
                 return None
             
-            response.raise_for_status()
-            data = response.json()
+            # Parsuj JSON
+            try:
+                data = response.json()
+            except (ValueError, TypeError) as json_err:
+                print(f"   ⚠️ Błąd parsowania O/U JSON: {json_err}")
+                return None
+            
+            # Sprawdź czy data nie jest None
+            if not data:
+                return None
+            
+            if not isinstance(data, dict):
+                return None
             
             # Parsuj odpowiedź
-            if 'data' in data and 'findPrematchOddsForBookmaker' in data['data']:
+            if isinstance(data, dict) and 'data' in data and isinstance(data.get('data'), dict) and 'findPrematchOddsForBookmaker' in data['data']:
                 odds_data = data['data']['findPrematchOddsForBookmaker']
+                
+                # KLUCZOWE: Sprawdź czy odds_data nie jest None!
+                if not odds_data or not isinstance(odds_data, dict):
+                    return None
                 
                 result = {
                     'bookmaker_id': self.bookmaker_id,
@@ -314,10 +345,25 @@ class LiveSportOddsAPI:
             if response.status_code != 200:
                 return None
             
-            data = response.json()
+            # Parsuj JSON
+            try:
+                data = response.json()
+            except (ValueError, TypeError):
+                return None
             
-            if 'data' in data and 'findPrematchOddsForBookmaker' in data['data']:
+            # Sprawdź czy data nie jest None
+            if not data:
+                return None
+            
+            if not isinstance(data, dict):
+                return None
+            
+            if isinstance(data, dict) and 'data' in data and isinstance(data.get('data'), dict) and 'findPrematchOddsForBookmaker' in data['data']:
                 odds_data = data['data']['findPrematchOddsForBookmaker']
+                
+                # KLUCZOWE: Sprawdź czy odds_data nie jest None!
+                if not odds_data or not isinstance(odds_data, dict):
+                    return None
                 
                 result = {}
                 
