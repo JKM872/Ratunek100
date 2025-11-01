@@ -381,4 +381,5 @@ Pull requesty mile widziane! Szczególnie:
 
 #   l i v e s p o r t s c r a p e r 
  
+ #   R a t u n e k 1 0 0  
  
