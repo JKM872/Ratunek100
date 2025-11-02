@@ -263,6 +263,13 @@ def create_html_email(matches: List[Dict], date: str, sort_by: str = 'time') -> 
         odds_html = ''
         home_odds = match.get('home_odds')
         away_odds = match.get('away_odds')
+        draw_odds = match.get('draw_odds')  # NOWE V3
+        
+        # NOWE V3: Informacje o bukmacherach
+        best_home_bm = match.get('best_home_bookmaker', '')
+        best_away_bm = match.get('best_away_bookmaker', '')
+        bookmakers_found = match.get('bookmakers_found', '')
+        all_odds_json = match.get('all_odds', '')
         
         # POPRAWKA: Sprawdź czy kursy są liczbami (nie NaN/None)
         # pandas NaN przechodzi przez `if home_odds and away_odds` i pokazuje się jako "nan"!
@@ -278,9 +285,59 @@ def create_html_email(matches: List[Dict], date: str, sort_by: str = 'time') -> 
             pass
         
         if has_valid_odds:
+            # Podstawowe kursy z informacją o bukmacherze
+            odds_line = f'{home} <span style="background-color: #FFD700; padding: 2px 6px; border-radius: 3px; font-weight: bold;">{home_odds:.2f}</span>'
+            if best_home_bm:
+                odds_line += f' <span style="font-size: 10px; color: #666;">({best_home_bm})</span>'
+            
+            # Remis (jeśli istnieje)
+            if draw_odds and not pd.isna(draw_odds) and 1.0 <= float(draw_odds) <= 100.0:
+                odds_line += f' | <span style="color: #f57c00;">Remis</span> <span style="background-color: #FFD700; padding: 2px 6px; border-radius: 3px; font-weight: bold;">{draw_odds:.2f}</span>'
+            
+            odds_line += f' | {away} <span style="background-color: #FFD700; padding: 2px 6px; border-radius: 3px; font-weight: bold;">{away_odds:.2f}</span>'
+            if best_away_bm:
+                odds_line += f' <span style="font-size: 10px; color: #666;">({best_away_bm})</span>'
+            
+            # Parsuj JSON z wszystkimi kursami (jeśli dostępne)
+            all_odds = {}
+            if all_odds_json and isinstance(all_odds_json, str) and all_odds_json.strip():
+                try:
+                    import json
+                    all_odds = json.loads(all_odds_json)
+                except:
+                    pass
+            
+            # NOWE V3: Dropdown z wszystkimi bukmacherami (jeśli > 1)
+            all_bookmakers_html = ''
+            if len(all_odds) > 1:
+                all_bookmakers_html = '<details style="margin-top: 8px; font-size: 12px;"><summary style="cursor: pointer; color: #667eea; font-weight: bold;">📊 Wszystkie kursy (' + str(len(all_odds)) + ' bukmacherów) ▼</summary>'
+                all_bookmakers_html += '<div style="margin-top: 8px; padding: 10px; background-color: #f5f5f5; border-left: 3px solid #667eea; border-radius: 3px;">'
+                
+                for bm_name, bm_odds in all_odds.items():
+                    h = bm_odds.get('home')
+                    d = bm_odds.get('draw')
+                    a = bm_odds.get('away')
+                    
+                    # Formatuj kursy
+                    h_str = f"{h:.2f}" if h and not pd.isna(h) else '-'
+                    d_str = f"{d:.2f}" if d and not pd.isna(d) else '-'
+                    a_str = f"{a:.2f}" if a and not pd.isna(a) else '-'
+                    
+                    # Oznacz najlepsze kursy gwiazdką
+                    if bm_name == best_home_bm:
+                        h_str = f'<strong style="color: #2e7d32;">{h_str} ★</strong>'
+                    if bm_name == best_away_bm:
+                        a_str = f'<strong style="color: #c62828;">{a_str} ★</strong>'
+                    
+                    all_bookmakers_html += f'<div style="margin-bottom: 5px;">• <strong>{bm_name}:</strong> {h_str} - {d_str} - {a_str}</div>'
+                
+                all_bookmakers_html += '<div style="margin-top: 8px; font-size: 11px; color: #666;">★ = Najlepszy kurs</div>'
+                all_bookmakers_html += '</div></details>'
+            
             odds_html = f'''
                 <div class="match-details" style="background-color: #FFF9E6; padding: 8px; border-radius: 5px; margin-top: 8px;">
-                    🎲 <strong>Kursy:</strong> {home} <span style="background-color: #FFD700; padding: 2px 6px; border-radius: 3px; font-weight: bold;">{home_odds:.2f}</span> | {away} <span style="background-color: #FFD700; padding: 2px 6px; border-radius: 3px; font-weight: bold;">{away_odds:.2f}</span>
+                    🎲 <strong>Kursy:</strong> {odds_line}
+                    {all_bookmakers_html}
                     <br><em style="font-size: 11px; color: #666;">⚠️ Kursy są wyłącznie informacją dodatkową, nie wpływają na scoring</em>
                 </div>
             '''
@@ -311,7 +368,7 @@ def create_html_email(matches: List[Dict], date: str, sort_by: str = 'time') -> 
         </div>
         
         <div class="footer">
-            <p>📧 Wygenerowano automatycznie przez Livesport H2H Scraper v6.1</p>
+            <p>📧 Wygenerowano automatycznie przez Livesport H2H Scraper v6.2</p>
             <p>🔔 <strong>Kryteria kwalifikacji:</strong></p>
             <p>🎾 <strong>Tennis:</strong> Multi-factor scoring (H2H + ranking + forma + powierzchnia) ≥ 50/100</p>
             <p>⚽ <strong>Sporty drużynowe:</strong></p>
@@ -322,6 +379,16 @@ def create_html_email(matches: List[Dict], date: str, sort_by: str = 'time') -> 
                 &nbsp;&nbsp;&nbsp;&nbsp;• Forma gospodarzy U SIEBIE<br>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Forma gości NA WYJEŹDZIE<br>
                 3️⃣ Gospodarze w dobrej formie + Goście w słabej = 🔥 Przewaga!
+            </p>
+            <p style="margin-top: 15px;">💰 <strong>Kursy bukmacherskie (NOWE V3):</strong></p>
+            <p style="margin-left: 20px;">
+                📊 Pobierane z 8 bukmacherów przez LiveSport API:<br>
+                🇵🇱 Polskie: STS, Fortuna, Superbet<br>
+                🌍 Międzynarodowe: NordicBet, Bet365, Betclic, William Hill, Unibet<br>
+                ★ = Najlepszy kurs spośród wszystkich dostępnych
+            </p>
+            <p style="margin-top: 10px; font-size: 11px; color: #999;">
+                ⚠️ Graj odpowiedzialnie. Hazard może uzależniać. 18+
             </p>
         </div>
     </body>

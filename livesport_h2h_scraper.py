@@ -59,6 +59,14 @@ from webdriver_manager.chrome import ChromeDriverManager
 # Import własnych modułów
 import over_under_analyzer
 
+# Database Manager (opcjonalny - dla integracji z aplikacją webową)
+try:
+    from db_manager import MatchDatabase
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+    print("⚠️ db_manager.py nie znaleziony - zapis do bazy danych wyłączony")
+
 
 # ----------------------
 # Helper / scraper code
@@ -625,9 +633,11 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
     odds = extract_betting_odds_with_api(url, use_multi_bookmaker=True)  # V2: Wielu bukmacherów
     out['home_odds'] = odds.get('home_odds')
     out['away_odds'] = odds.get('away_odds')
+    out['draw_odds'] = odds.get('draw_odds')  # DODANE: Remis
     out['bookmakers_found'] = odds.get('bookmakers_found', [])  # NOWE
     out['best_home_bookmaker'] = odds.get('best_home_bookmaker')  # NOWE
     out['best_away_bookmaker'] = odds.get('best_away_bookmaker')  # NOWE
+    out['all_odds'] = odds.get('all_odds', {})  # NOWE V3: Wszystkie kursy z bukmacherów
     
     # ===================================================================
     # ANALIZA OVER/UNDER - Statystyki bramek/punktów
@@ -1117,10 +1127,13 @@ def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) ->
     """
     Ekstraktuj kursy bukmacherskie używając LiveSport GraphQL API.
     
-    NOWA WERSJA V2 - obsługuje wielu bukmacherów!
-    - Próbuje NordicBet (165), STS (167), Bet365 (16), Betclic (170), itp.
-    - Zwraca najlepsze kursy ze wszystkich źródeł
-    - Retry mechanism z backoff
+    WERSJA V3 (MAKSYMALNA SIŁA) - obsługuje 8 bukmacherów + inteligentny fallback!
+    - STS (167) jako PIERWSZY (polski rynek)
+    - Fortuna (171), Superbet (172) jako kolejne polskie bukmacherzy
+    - 3 próby zamiast 2 (exponential backoff)
+    - Fallback do alternatywnych parametrów
+    - Rate limiting (200ms między bukmacherami)
+    - Optymalizacja: Skip jeśli STS zwrócił pełne kursy
     
     Args:
         url: URL meczu z Livesport
@@ -1131,27 +1144,30 @@ def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) ->
             'home_odds': 1.85, 
             'away_odds': 2.10, 
             'draw_odds': 3.50,
-            'bookmakers_found': ['NordicBet', 'STS'],  # NOWE
-            'best_home_bookmaker': 'STS',  # NOWE
-            'best_away_bookmaker': 'NordicBet'  # NOWE
+            'bookmakers_found': ['STS', 'NordicBet'],
+            'best_home_bookmaker': 'STS',
+            'best_away_bookmaker': 'NordicBet'
         }
     """
     try:
         from livesport_odds_api_client import LiveSportOddsAPI
         
-        # Lista bukmacherów do sprawdzenia (w kolejności priorytetu)
+        # Lista bukmacherów (ROZSZERZONA - 8 bukmacherów!)
+        # ZMIANA: STS jako PIERWSZY (polski rynek ma priorytet)
         bookmakers_to_try = [
-            ("165", "NordicBet"),
-            ("167", "STS"),
-            ("16", "Bet365"),
-            ("170", "Betclic"),
-            ("171", "Fortuna"),
-            ("172", "Superbet"),
+            ("167", "STS"),           # ← POLSKI (priorytet #1)
+            ("171", "Fortuna"),       # ← POLSKI (priorytet #2)
+            ("172", "Superbet"),      # ← POLSKI (priorytet #3)
+            ("165", "NordicBet"),     # Skandynawia
+            ("16", "Bet365"),         # UK (duże pokrycie)
+            ("170", "Betclic"),       # Francja
+            ("43", "William Hill"),   # UK
+            ("8", "Unibet"),          # Europa
         ]
         
         if not use_multi_bookmaker:
-            # Tylko NordicBet (stara metoda - szybka)
-            bookmakers_to_try = [("165", "NordicBet")]
+            # Tylko STS (szybka metoda dla polskiego rynku)
+            bookmakers_to_try = [("167", "STS")]
         
         result = {
             'home_odds': None,
@@ -1171,18 +1187,20 @@ def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) ->
                 # Inicjalizuj klienta dla tego bukmachera
                 client = LiveSportOddsAPI(bookmaker_id=bm_id, geo_ip_code="PL")
                 
-                # Pobierz kursy z retry (max 2 próby)
+                # Pobierz kursy z 3 próbami (ZMIANA: 3 zamiast 2)
                 odds = None
-                for attempt in range(2):
+                for attempt in range(3):
                     try:
                         odds = client.get_odds_from_url(url)
                         if odds and (odds.get('home_odds') or odds.get('away_odds')):
                             break
-                        if attempt == 0:
-                            time.sleep(0.5)  # Krótka przerwa przed retry
-                    except:
-                        if attempt == 0:
-                            time.sleep(0.8)
+                        if attempt < 2:
+                            time.sleep(0.5 * (attempt + 1))  # Exponential backoff
+                    except Exception as e:
+                        if VERBOSE:
+                            print(f"   ⚠️ {bm_name} attempt {attempt+1} failed: {e}")
+                        if attempt < 2:
+                            time.sleep(0.8 * (attempt + 1))
                         continue
                 
                 if odds and (odds.get('home_odds') or odds.get('away_odds')):
@@ -1210,10 +1228,16 @@ def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) ->
                     
                     if VERBOSE:
                         print(f"   💰 {bm_name}: H={odds.get('home_odds')} A={odds.get('away_odds')}")
+                    
+                    # OPTYMALIZACJA: Jeśli STS zwrócił pełne kursy, nie szukaj dalej
+                    if bm_name == "STS" and odds.get('home_odds') and odds.get('away_odds'):
+                        if VERBOSE:
+                            print(f"   ✅ STS zwrócił pełne kursy - pomijam pozostałych bukmacherów (oszczędność czasu)")
+                        break
                 
-                # Krótka przerwa między bukmacherami (rate limiting)
+                # Rate limiting (ZMIANA: 200ms zamiast 150ms - mniej agresywne)
                 if use_multi_bookmaker:
-                    time.sleep(0.15)
+                    time.sleep(0.2)
                 
             except Exception as e:
                 if VERBOSE:
@@ -2686,7 +2710,34 @@ Przykłady użycia:
     if 'h2h_last5' in df.columns:
         df['h2h_last5'] = df['h2h_last5'].apply(lambda x: str(x) if x else '')
     
+    # Konwersja all_odds (słownik) na JSON string dla CSV (NOWE V3)
+    if 'all_odds' in df.columns:
+        import json
+        df['all_odds'] = df['all_odds'].apply(lambda x: json.dumps(x, ensure_ascii=False) if x else '')
+    
+    # Konwersja bookmakers_found (lista) na string dla CSV (NOWE V3)
+    if 'bookmakers_found' in df.columns:
+        df['bookmakers_found'] = df['bookmakers_found'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x) if x else '')
+    
     df.to_csv(outfn, index=False, encoding='utf-8-sig')
+
+    # NOWE V3: Zapisz do bazy danych SQLite (dla aplikacji webowej)
+    if DB_AVAILABLE and rows:
+        try:
+            print('\n💾 Zapisywanie do bazy danych...')
+            db = MatchDatabase()
+            inserted = db.insert_matches_batch(rows)
+            print(f'✅ Zapisano {inserted}/{len(rows)} meczów do bazy danych')
+            
+            # Pokaż statystyki bazy
+            stats = db.get_stats()
+            print(f'📊 Statystyki bazy danych:')
+            print(f'   Wszystkich meczów: {stats["total_matches"]}')
+            print(f'   Kwalifikujących się: {stats["qualifying_matches"]}')
+            print(f'   Sportów: {stats["unique_sports"]}')
+            print(f'   Ostatnia aktualizacja: {stats["last_update"]}')
+        except Exception as e:
+            print(f'⚠️ Błąd zapisu do bazy danych: {e}')
 
     # Podsumowanie
     print(f'\n📊 PODSUMOWANIE:')

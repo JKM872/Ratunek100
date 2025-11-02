@@ -53,7 +53,9 @@ jobs:
           --headless \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
         # Poczekaj 10 sekund między mailami
         echo ""
@@ -73,7 +75,9 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
         # Poczekaj 10 sekund przed Mail 3
         echo ""
