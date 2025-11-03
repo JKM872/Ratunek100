@@ -70,12 +70,14 @@ function App() {
     dateTo: '',
   })
 
-  const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:7178/api'
+  const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3001/api'
 
   const fetchData = async () => {
     try {
       setLoading(true)
       setError(null)
+      
+      console.log('🔍 Fetching from:', API_BASE)
 
       const params = new URLSearchParams()
       if (filters.sport !== 'all') params.append('sport', filters.sport)
@@ -87,6 +89,9 @@ function App() {
         axios.get(`${API_BASE}/matches?${params.toString()}`),
         axios.get(`${API_BASE}/stats`),
       ])
+
+      console.log('📊 Matches response:', matchesRes.data)
+      console.log('📈 Stats response:', statsRes.data)
 
       setMatches(matchesRes.data.matches || [])
       setStats(statsRes.data.stats || {})

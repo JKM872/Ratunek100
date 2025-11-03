@@ -634,8 +634,16 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
     # Kursy bukmacherskie - dodatkowa informacja (NIE wpływa na scoring!)
     # UŻYWAMY PRAWDZIWEGO API LIVESPORT z MULTI-BOOKMAKER SUPPORT!
     # V4: Dodano tenacity @retry + fallback handling
+    # V5: FALLBACK SELENIUM dla volleyball/tennis/handball (API nie ma pokrycia)
     try:
         odds = extract_betting_odds_with_api(url, use_multi_bookmaker=True)  # V2: Wielu bukmacherów
+        
+        # FALLBACK: Jeśli API nie zwróciło kursów (np. volleyball/tennis/handball)
+        if not odds.get('home_odds') and not odds.get('away_odds'):
+            if VERBOSE:
+                print(f"   ⚠️ API nie zwróciło kursów - próbuję Selenium scraping...")
+            odds = extract_betting_odds_selenium(soup, driver, url)  # V5: Nowa funkcja Selenium
+        
         out['home_odds'] = odds.get('home_odds')
         out['away_odds'] = odds.get('away_odds')
         out['draw_odds'] = odds.get('draw_odds')  # DODANE: Remis
@@ -1288,6 +1296,131 @@ def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) ->
         if VERBOSE:
             print(f"   ⚠️ API Error: {e}")
         return {'home_odds': None, 'away_odds': None, 'bookmakers_found': []}
+
+
+def extract_betting_odds_selenium(soup: BeautifulSoup, driver: webdriver.Chrome, url: str) -> Dict[str, Optional[float]]:
+    """
+    FALLBACK: Ekstraktuj kursy bukmacherskie ze strony Livesport używając Selenium.
+    Używane tylko dla sportów bez pokrycia API (volleyball, tennis, handball).
+    
+    Args:
+        soup: BeautifulSoup object strony meczu
+        driver: Selenium WebDriver
+        url: URL meczu
+    
+    Returns:
+        {
+            'home_odds': 1.85, 
+            'away_odds': 2.10, 
+            'draw_odds': 3.50,
+            'bookmakers_found': ['STS'],
+            'best_home_bookmaker': 'STS',
+            'best_away_bookmaker': 'STS',
+            'all_odds': {}
+        }
+    """
+    result = {
+        'home_odds': None,
+        'away_odds': None,
+        'draw_odds': None,
+        'bookmakers_found': [],
+        'best_home_bookmaker': None,
+        'best_away_bookmaker': None,
+        'all_odds': {}
+    }
+    
+    try:
+        # METODA 1: Szukaj zakładki "Kursy" / "Odds"
+        # Kliknij zakładkę z kursami (jeśli istnieje)
+        try:
+            odds_tabs = driver.find_elements(By.XPATH, "//a[contains(text(), 'Kursy') or contains(text(), 'Odds')]")
+            if odds_tabs:
+                odds_tabs[0].click()
+                time.sleep(1.5)  # Poczekaj na załadowanie
+                soup = BeautifulSoup(driver.page_source, 'html.parser')  # Odśwież soup
+        except:
+            pass
+        
+        # METODA 2: Parsuj elementy z kursami z aktualnej strony
+        # Livesport często używa klas typu "odds__odd", "oddsValue", "participant__odds"
+        odds_selectors = [
+            'div.oddsTab__contentRow',
+            'div[class*="odds"]',
+            'div.participant__odds',
+            'span.oddsValue',
+            'div.odd',
+        ]
+        
+        for selector in odds_selectors:
+            odds_elements = soup.select(selector)
+            
+            if odds_elements:
+                # Parsuj pierwszą parę kursów (home vs away)
+                odds_values = []
+                for elem in odds_elements[:3]:  # Max 3 (home, draw, away)
+                    text = elem.get_text(strip=True)
+                    # Szukaj liczby zmiennoprzecinkowej (np. 1.85, 2.10)
+                    odds_match = re.search(r'(\d+\.\d{2})', text)
+                    if odds_match:
+                        odds_values.append(float(odds_match.group(1)))
+                
+                if len(odds_values) >= 2:
+                    result['home_odds'] = odds_values[0]
+                    result['away_odds'] = odds_values[-1]  # Ostatni to away
+                    
+                    if len(odds_values) == 3:
+                        result['draw_odds'] = odds_values[1]
+                    
+                    result['bookmakers_found'] = ['Livesport']
+                    result['best_home_bookmaker'] = 'Livesport'
+                    result['best_away_bookmaker'] = 'Livesport'
+                    
+                    if VERBOSE:
+                        print(f"   💰 Selenium scraping: H={result['home_odds']} A={result['away_odds']}")
+                    
+                    break
+        
+        # METODA 3: Szukaj w tabelach z kursami
+        if not result['home_odds'] and not result['away_odds']:
+            odds_tables = soup.select('table[class*="odds"], div.oddsTab__table')
+            
+            for table in odds_tables:
+                rows = table.select('tr, div[class*="row"]')
+                
+                for row in rows:
+                    cells = row.select('td, div[class*="cell"], span')
+                    
+                    odds_in_row = []
+                    for cell in cells:
+                        text = cell.get_text(strip=True)
+                        odds_match = re.search(r'(\d+\.\d{2})', text)
+                        if odds_match:
+                            odds_in_row.append(float(odds_match.group(1)))
+                    
+                    if len(odds_in_row) >= 2:
+                        result['home_odds'] = odds_in_row[0]
+                        result['away_odds'] = odds_in_row[-1]
+                        
+                        if len(odds_in_row) == 3:
+                            result['draw_odds'] = odds_in_row[1]
+                        
+                        result['bookmakers_found'] = ['Livesport']
+                        result['best_home_bookmaker'] = 'Livesport'
+                        result['best_away_bookmaker'] = 'Livesport'
+                        
+                        if VERBOSE:
+                            print(f"   💰 Selenium scraping (table): H={result['home_odds']} A={result['away_odds']}")
+                        
+                        break
+                
+                if result['home_odds']:
+                    break
+        
+    except Exception as e:
+        if VERBOSE:
+            print(f"   ⚠️ Selenium scraping error: {e}")
+    
+    return result
 
 
 def extract_betting_odds_with_selenium(driver: webdriver.Chrome, soup: BeautifulSoup, url: str = None) -> Dict[str, Optional[float]]:
