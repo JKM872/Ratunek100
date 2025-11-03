@@ -87,8 +87,8 @@ function App() {
         axios.get(`${API_BASE}/stats`),
       ])
 
-      setMatches(matchesRes.data)
-      setStats(statsRes.data)
+      setMatches(matchesRes.data.matches || [])
+      setStats(statsRes.data.stats || {})
     } catch (err: any) {
       setError(err.message || 'Błąd podczas pobierania danych')
       console.error('Error fetching data:', err)
