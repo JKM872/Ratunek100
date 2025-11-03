@@ -375,6 +375,29 @@ app.get('/api/sports', (req, res) => {
 });
 
 // ============================================================================
+// SERVE REACT BUILD - Frontend Dashboard
+// ============================================================================
+const CLIENT_BUILD = path.join(__dirname, 'client', 'dist');
+
+// Serwuj statyczne pliki z buildu React
+if (fs.existsSync(CLIENT_BUILD)) {
+  app.use(express.static(CLIENT_BUILD));
+  
+  // Catch-all route - wszystkie inne requesty kieruj do React (SPA routing)
+  app.get('*', (req, res) => {
+    // Nie przechwytuj ścieżek API
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(CLIENT_BUILD, 'index.html'));
+  });
+  
+  console.log('✅ Serwuję React Dashboard z:', CLIENT_BUILD);
+} else {
+  console.log('⚠️  React build nie znaleziony. Uruchom: cd client && npm run build');
+}
+
+// ============================================================================
 // Uruchom serwer
 // ============================================================================
 app.listen(PORT, () => {
@@ -382,11 +405,13 @@ app.listen(PORT, () => {
   console.log('🚀 APLIKACJA UI URUCHOMIONA');
   console.log('='.repeat(70));
   console.log(`📍 URL: http://localhost:${PORT}`);
+  console.log(`🎨 Dashboard: http://localhost:${PORT}`);
   console.log(`📊 API: http://localhost:${PORT}/api`);
   console.log(`💾 Baza: ${DB_PATH}`);
   console.log(`🔑 API Key: ${API_KEY ? '✅ Ustawiony' : '⚠️  Brak (development mode)'}`);
   console.log('='.repeat(70));
   console.log('\n📝 Dostępne endpointy:');
+  console.log('  GET  /                    - React Dashboard (Frontend UI)');
   console.log('  GET  /api/health          - Health check');
   console.log('  POST /api/webhook/matches - Odbierz dane ze scrapera (wymaga API Key)');
   console.log('  GET  /api/matches         - Lista meczów (?sport=football&date=2025-10-26&qualifies=true)');
