@@ -26,7 +26,7 @@ wheels/
 # Output files
 outputs/
 *.csv
-*.json
+# *.json  # Commented out - need package.json for deployment
 
 # IDE
 .vscode/
