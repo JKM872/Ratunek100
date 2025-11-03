@@ -6,10 +6,32 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const API_KEY = process.env.SCRAPER_API_KEY || 'super-secret-key-12345';
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));  // Larger limit for webhook data
+
+// API Key verification middleware
+const verifyApiKey = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Missing or invalid Authorization header' 
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  if (token !== API_KEY) {
+    return res.status(403).json({ 
+      success: false, 
+      error: 'Invalid API key' 
+    });
+  }
+  
+  next();
+};
 
 // Database connection
 // Check if we're on Heroku (GitHub Actions scraper writes to /app/data/matches.db)
@@ -24,30 +46,65 @@ if (process.env.DATABASE_PATH) {
   DB_PATH = path.join(__dirname, 'outputs', 'matches.db');  // Local - will create on scraper run
 }
 
-console.log('📂 Database path:', DB_PATH);
+// Ensure data directory exists
+const dbDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+  console.log('� Created directory:', dbDir);
+}
+
+console.log('�📂 Database path:', DB_PATH);
 console.log('📂 Database exists:', fs.existsSync(DB_PATH) ? 'YES' : 'NO');
 
 let db = null;
 let dbConnected = false;
 
 try {
-  // Use OPEN_READONLY if database exists, otherwise skip database entirely
-  // Don't try to create database - let Python scraper create it
-  if (fs.existsSync(DB_PATH)) {
-    db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READONLY, (err) => {
-      if (err) {
-        console.error('❌ Database connection error:', err.message);
-        dbConnected = false;
-      } else {
-        console.log('✅ Connected to SQLite database (READONLY)');
-        dbConnected = true;
-      }
-    });
-  } else {
-    console.log('⚠️  Database not found - will use fallback UI');
-    console.log('💡 Run Python scraper to create the database at:', DB_PATH);
-    dbConnected = false;
-  }
+  // Use READWRITE to allow webhook writes, create if doesn't exist
+  const openMode = fs.existsSync(DB_PATH) 
+    ? sqlite3.OPEN_READWRITE 
+    : sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE;
+    
+  db = new sqlite3.Database(DB_PATH, openMode, (err) => {
+    if (err) {
+      console.error('❌ Database connection error:', err.message);
+      dbConnected = false;
+    } else {
+      console.log('✅ Connected to SQLite database');
+      dbConnected = true;
+      
+      // Create table if doesn't exist
+      db.run(`
+        CREATE TABLE IF NOT EXISTS matches (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sport TEXT,
+          match_date TEXT,
+          match_time TEXT,
+          home_team TEXT,
+          away_team TEXT,
+          home_odds REAL,
+          away_odds REAL,
+          draw_odds REAL,
+          home_win_percentage REAL,
+          draw_percentage REAL,
+          away_win_percentage REAL,
+          avg_home_goals REAL,
+          avg_away_goals REAL,
+          qualifies INTEGER,
+          created_at TEXT,
+          all_odds TEXT,
+          bookmaker_name TEXT,
+          bookmaker_url TEXT
+        )
+      `, (err) => {
+        if (err) {
+          console.error('❌ Table creation error:', err.message);
+        } else {
+          console.log('✅ Database schema ready');
+        }
+      });
+    }
+  });
 } catch (err) {
   console.error('❌ Database error:', err);
   dbConnected = false;
@@ -65,6 +122,101 @@ app.get('/api/health', (req, res) => {
     databasePath: DB_PATH,
     databaseExists: fs.existsSync(DB_PATH)
   });
+});
+
+// POST /api/webhook/matches - Receive matches from scraper
+app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
+  try {
+    const { matches, date, sport } = req.body;
+    
+    console.log('\n' + '='.repeat(70));
+    console.log('📥 WEBHOOK: Received data from scraper');
+    console.log('='.repeat(70));
+    console.log(`📅 Date: ${date}`);
+    console.log(`⚽ Sport: ${sport}`);
+    console.log(`📊 Matches: ${matches ? matches.length : 0}`);
+    
+    if (!matches || !Array.isArray(matches)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid data format - matches must be an array' 
+      });
+    }
+    
+    if (!db || !dbConnected) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'Database not available' 
+      });
+    }
+    
+    let saved = 0;
+    let errors = 0;
+    
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO matches (
+        sport, match_date, match_time, home_team, away_team,
+        home_odds, away_odds, draw_odds,
+        home_win_percentage, draw_percentage, away_win_percentage,
+        avg_home_goals, avg_away_goals,
+        qualifies, created_at, all_odds, bookmaker_name, bookmaker_url
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    for (const match of matches) {
+      try {
+        const all_odds_json = match.all_odds
+          ? (typeof match.all_odds === 'string' ? match.all_odds : JSON.stringify(match.all_odds))
+          : null;
+        
+        stmt.run(
+          match.sport || sport,
+          match.match_date || date,
+          match.match_time || null,
+          match.home_team,
+          match.away_team,
+          match.home_odds || null,
+          match.away_odds || null,
+          match.draw_odds || null,
+          match.home_win_percentage || null,
+          match.draw_percentage || null,
+          match.away_win_percentage || null,
+          match.avg_home_goals || null,
+          match.avg_away_goals || null,
+          match.qualifies || 0,
+          match.created_at || new Date().toISOString(),
+          all_odds_json,
+          match.bookmaker_name || null,
+          match.bookmaker_url || null
+        );
+        saved++;
+      } catch (err) {
+        console.error(`❌ Error saving match ${match.home_team} vs ${match.away_team}:`, err.message);
+        errors++;
+      }
+    }
+    
+    stmt.finalize();
+    
+    console.log(`✅ Saved ${saved} matches to database`);
+    if (errors > 0) {
+      console.log(`⚠️  ${errors} matches failed to save`);
+    }
+    
+    res.json({ 
+      success: true,
+      message: 'Matches saved successfully',
+      saved,
+      errors,
+      total: matches.length
+    });
+  } catch (err) {
+    console.error('❌ Webhook error:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
 });
 
 // GET /api/matches - Pobierz mecze
