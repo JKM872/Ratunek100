@@ -30,7 +30,7 @@ export default function Dashboard({ stats }: DashboardProps) {
     },
     {
       title: 'Średnie kursy',
-      value: stats.avg_odds.toFixed(2),
+      value: (stats.avg_odds || 0).toFixed(2),
       icon: <TrendingUpIcon fontSize="large" />,
       color: '#ff9800',
     },
