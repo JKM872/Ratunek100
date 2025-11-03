@@ -1,0 +1,21 @@
+{
+  "app_url": "http://localhost:3000",
+  "api_key": "your-optional-api-key-here",
+  "endpoints": {
+    "matches": "/api/webhook/matches",
+    "progress": "/api/webhook/progress"
+  },
+  "enabled": true,
+  "comments": {
+    "app_url": "URL Twojej aplikacji UI (bez końcowego slasha)",
+    "api_key": "Opcjonalny API key dla autoryzacji",
+    "enabled": "Ustaw false aby wyłączyć automatyczne wysyłanie"
+  }
+}
+
+
+
+
+
+
+
