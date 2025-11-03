@@ -17,9 +17,11 @@ let DB_PATH;
 if (process.env.DATABASE_PATH) {
   DB_PATH = process.env.DATABASE_PATH;
 } else if (fs.existsSync('/app/data/matches.db')) {
-  DB_PATH = '/app/data/matches.db';  // Heroku
+  DB_PATH = '/app/data/matches.db';  // Heroku - GitHub Actions scraper writes here
+} else if (fs.existsSync(path.join(__dirname, 'outputs', 'matches.db'))) {
+  DB_PATH = path.join(__dirname, 'outputs', 'matches.db');  // Local existing
 } else {
-  DB_PATH = path.join(__dirname, 'outputs', 'matches.db');  // Local
+  DB_PATH = path.join(__dirname, 'outputs', 'matches.db');  // Local - will create on scraper run
 }
 
 console.log('📂 Database path:', DB_PATH);
