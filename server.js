@@ -25,21 +25,32 @@ if (process.env.DATABASE_PATH) {
 }
 
 console.log('📂 Database path:', DB_PATH);
+console.log('📂 Database exists:', fs.existsSync(DB_PATH) ? 'YES' : 'NO');
 
-let db;
+let db = null;
+let dbConnected = false;
+
 try {
-  // Use OPEN_READONLY if database exists, otherwise OPEN_READWRITE to allow creation
-  const openMode = fs.existsSync(DB_PATH) ? sqlite3.OPEN_READONLY : sqlite3.OPEN_READWRITE;
-  db = new sqlite3.Database(DB_PATH, openMode, (err) => {
-    if (err) {
-      console.error('❌ Database connection error:', err.message);
-      console.log('💡 Run Python scraper first to create the database');
-    } else {
-      console.log('✅ Connected to SQLite database');
-    }
-  });
+  // Use OPEN_READONLY if database exists, otherwise skip database entirely
+  // Don't try to create database - let Python scraper create it
+  if (fs.existsSync(DB_PATH)) {
+    db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READONLY, (err) => {
+      if (err) {
+        console.error('❌ Database connection error:', err.message);
+        dbConnected = false;
+      } else {
+        console.log('✅ Connected to SQLite database (READONLY)');
+        dbConnected = true;
+      }
+    });
+  } else {
+    console.log('⚠️  Database not found - will use fallback UI');
+    console.log('💡 Run Python scraper to create the database at:', DB_PATH);
+    dbConnected = false;
+  }
 } catch (err) {
   console.error('❌ Database error:', err);
+  dbConnected = false;
 }
 
 // ==================== API ENDPOINTS ====================
@@ -50,16 +61,24 @@ app.get('/api/health', (req, res) => {
     success: true,
     message: 'API is running',
     timestamp: new Date().toISOString(),
-    database: db ? 'connected' : 'disconnected'
+    database: dbConnected ? 'connected' : 'disconnected',
+    databasePath: DB_PATH,
+    databaseExists: fs.existsSync(DB_PATH)
   });
 });
 
 // GET /api/matches - Pobierz mecze
 app.get('/api/matches', (req, res) => {
-  if (!db) {
+  if (!db || !dbConnected) {
     return res.status(503).json({
       success: false,
-      error: 'Database not available. Run Python scraper first.'
+      error: 'Database not available',
+      message: 'Run Python scraper first to create the database',
+      database: {
+        path: DB_PATH,
+        exists: fs.existsSync(DB_PATH),
+        connected: dbConnected
+      }
     });
   }
 
@@ -278,7 +297,6 @@ app.get('/api/bookmakers', (req, res) => {
 const buildPaths = [
   path.join(__dirname, 'example_ui_app', 'client', 'dist'),  // Primary: example_ui_app
   path.join(__dirname, 'client', 'dist'),                     // Secondary: root client
-  path.join(__dirname, 'public')                              // Fallback: public
 ];
 
 let buildDir = null;
@@ -303,15 +321,108 @@ if (buildDir) {
     res.sendFile(path.join(buildDir, 'index.html'));
   });
 } else {
-  console.log('⚠️  React build not found in any location');
+  console.log('⚠️  React build not found - using fallback diagnostic UI');
+  
+  // Serve fallback diagnostic UI
+  const publicPath = path.join(__dirname, 'public');
+  if (fs.existsSync(publicPath)) {
+    app.use(express.static(publicPath));
+    console.log('✅ Serving fallback UI from:', publicPath);
+  }
+  
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
       return res.status(404).json({ success: false, error: 'API endpoint not found' });
     }
-    res.status(404).json({
-      success: false,
-      error: 'React build not found. Please run: cd example_ui_app/client && npm run build'
-    });
+    
+    // Try to serve public/index.html
+    const fallbackPath = path.join(__dirname, 'public', 'index.html');
+    if (fs.existsSync(fallbackPath)) {
+      return res.sendFile(fallbackPath);
+    }
+    
+    // Last resort - serve inline diagnostic UI
+    return res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Livesport Scraper - Diagnostic UI</title>
+        <style>
+          body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+          .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+          h1 { color: #333; }
+          .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+          .warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; }
+          .success { background: #d4edda; border: 1px solid #28a745; color: #155724; }
+          button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+          button:hover { background: #0056b3; }
+          #result { margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 4px; white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🏏 Livesport Scraper Dashboard</h1>
+          <p>React build not found. Using diagnostic fallback UI.</p>
+          
+          <div class="status warning">
+            ⚠️ React build not found at: /app/example_ui_app/client/dist/
+          </div>
+          
+          <h2>Test API Endpoints:</h2>
+          <button onclick="testHealth()">Test /api/health</button>
+          <button onclick="testMatches()">Test /api/matches</button>
+          <button onclick="testStats()">Test /api/stats</button>
+          
+          <div id="result"></div>
+          
+          <h2>Setup Instructions:</h2>
+          <ol>
+            <li>Run Python scraper to create database: <code>python livesport_odds_api_client.py --parallel</code></li>
+            <li>Build React UI: <code>cd example_ui_app/client && npm run build</code></li>
+            <li>Redeploy to Heroku: <code>git push heroku main</code></li>
+          </ol>
+        </div>
+        
+        <script>
+          async function testHealth() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing...';
+            try {
+              const response = await fetch('/api/health');
+              const data = await response.json();
+              result.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+              result.textContent = 'Error: ' + e.message;
+            }
+          }
+          
+          async function testMatches() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing...';
+            try {
+              const response = await fetch('/api/matches?limit=5');
+              const data = await response.json();
+              result.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+              result.textContent = 'Error: ' + e.message;
+            }
+          }
+          
+          async function testStats() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing...';
+            try {
+              const response = await fetch('/api/stats');
+              const data = await response.json();
+              result.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+              result.textContent = 'Error: ' + e.message;
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `);
   });
 }
 
