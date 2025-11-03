@@ -1151,7 +1151,7 @@ def extract_team_form(soup: BeautifulSoup, driver: webdriver.Chrome, side: str, 
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception_type((ConnectionError, TimeoutError, Exception)),
-    reraise=True
+    reraise=False  # V5: Zwróć result zamiast raise - pozwala fallback Selenium działać
 )
 def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) -> Dict[str, Optional[float]]:
     """
