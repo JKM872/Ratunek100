@@ -2,6 +2,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,12 +12,23 @@ app.use(cors());
 app.use(express.json());
 
 // Database connection
-const DB_PATH = path.join(__dirname, 'outputs', 'matches.db');
+// Check if we're on Heroku (GitHub Actions scraper writes to /app/data/matches.db)
+let DB_PATH;
+if (process.env.DATABASE_PATH) {
+  DB_PATH = process.env.DATABASE_PATH;
+} else if (fs.existsSync('/app/data/matches.db')) {
+  DB_PATH = '/app/data/matches.db';  // Heroku
+} else {
+  DB_PATH = path.join(__dirname, 'outputs', 'matches.db');  // Local
+}
+
 console.log('📂 Database path:', DB_PATH);
 
 let db;
 try {
-  db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READWRITE, (err) => {
+  // Use OPEN_READONLY if database exists, otherwise OPEN_READWRITE to allow creation
+  const openMode = fs.existsSync(DB_PATH) ? sqlite3.OPEN_READONLY : sqlite3.OPEN_READWRITE;
+  db = new sqlite3.Database(DB_PATH, openMode, (err) => {
     if (err) {
       console.error('❌ Database connection error:', err.message);
       console.log('💡 Run Python scraper first to create the database');
@@ -260,9 +272,46 @@ app.get('/api/bookmakers', (req, res) => {
 });
 
 // Catch-all route - serve index.html for SPA routing
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// Try multiple locations for React build
+const buildPaths = [
+  path.join(__dirname, 'example_ui_app', 'client', 'dist'),  // Primary: example_ui_app
+  path.join(__dirname, 'client', 'dist'),                     // Secondary: root client
+  path.join(__dirname, 'public')                              // Fallback: public
+];
+
+let buildDir = null;
+for (const buildPath of buildPaths) {
+  if (fs.existsSync(buildPath)) {
+    buildDir = buildPath;
+    console.log('✅ Found React build at:', buildDir);
+    break;
+  }
+}
+
+if (buildDir) {
+  // Serve static files
+  app.use(express.static(buildDir));
+  
+  // Catch-all for SPA routing
+  app.get('*', (req, res) => {
+    // Don't intercept API calls that don't exist
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ success: false, error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(buildDir, 'index.html'));
+  });
+} else {
+  console.log('⚠️  React build not found in any location');
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ success: false, error: 'API endpoint not found' });
+    }
+    res.status(404).json({
+      success: false,
+      error: 'React build not found. Please run: cd example_ui_app/client && npm run build'
+    });
+  });
+}
 
 // Error handling
 app.use((err, req, res, next) => {
