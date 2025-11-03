@@ -24,7 +24,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;  // Zmieniony na 3001 (3000 zajęty)
 const API_KEY = process.env.SCRAPER_API_KEY || 'super-secret-key-12345';
 
 // Middleware

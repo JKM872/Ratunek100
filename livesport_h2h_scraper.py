@@ -2473,6 +2473,8 @@ Przykłady użycia:
                        help='Szukaj meczów gdzie GOŚCIE mają >=60%% zwycięstw w H2H (zamiast gospodarzy)')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Szczegółowe logi (debug mode) - pokazuje wszystkie kroki scrapowania')
+    parser.add_argument('--app-url', help='URL aplikacji UI do wysyłki danych (np. http://localhost:3001 lub https://twoja-app.herokuapp.com)')
+    parser.add_argument('--app-api-key', help='API Key do autoryzacji w aplikacji UI')
     args = parser.parse_args()
 
     # Ustaw VERBOSE globalnie
@@ -2738,6 +2740,41 @@ Przykłady użycia:
             print(f'   Ostatnia aktualizacja: {stats["last_update"]}')
         except Exception as e:
             print(f'⚠️ Błąd zapisu do bazy danych: {e}')
+
+    # NOWE V4: Wysyłka danych do aplikacji UI (Heroku/Railway)
+    if args.app_url and rows:
+        try:
+            print('\n🔗 KROK 4/4: Wysyłanie danych do aplikacji UI...')
+            print('='*70)
+            from app_integrator import AppIntegrator
+            
+            integrator = AppIntegrator(app_url=args.app_url, api_key=args.app_api_key)
+            
+            # Test połączenia
+            print(f'\n🔍 Testuję połączenie z aplikacją...')
+            print(f'   URL: {args.app_url}')
+            if integrator.test_connection():
+                print(f'   ✅ Połączenie działa!')
+            else:
+                print(f'   ⚠️  Nie udało się połączyć, ale próbuję wysłać dane...')
+            
+            # Wysyłka danych
+            print(f'\n📤 Wysyłam dane do aplikacji...')
+            sport = args.sports[0] if args.sports else 'unknown'
+            
+            if integrator.send_matches(rows, args.date, sport):
+                print(f'✅ Synchronizacja z aplikacją ukończona!')
+            else:
+                print(f'⚠️  Nie udało się wysłać danych (ale scraping się powiedł)')
+                
+        except ImportError:
+            print(f'⚠️  app_integrator.py nie znaleziony - pomijam wysyłkę do aplikacji')
+        except Exception as e:
+            print(f'⚠️  Błąd podczas wysyłki do aplikacji: {e}')
+    elif args.app_url and not rows:
+        print(f'\n⚠️  Brak danych do wysłania do aplikacji UI')
+    elif not args.app_url:
+        print(f'\n💡 TIP: Użyj --app-url aby automatycznie wysyłać dane do aplikacji UI')
 
     # Podsumowanie
     print(f'\n📊 PODSUMOWANIE:')

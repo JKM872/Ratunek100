@@ -2,7 +2,7 @@
  * 🧪 TEST WEBHOOK - Testuj połączenie scrapera z aplikacją UI
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:3001';  // Zmieniony na 3001
 const API_KEY = process.env.SCRAPER_API_KEY || 'super-secret-key-12345';
 
 // Przykładowe dane (symulacja scrapera)
