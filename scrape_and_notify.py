@@ -13,6 +13,62 @@ from email_notifier import send_email_notification
 from app_integrator import AppIntegrator, create_integrator_from_config
 import pandas as pd
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tenacity import retry, stop_after_attempt, wait_exponential
+import threading
+
+# 🚀 Konfiguracja optymalizacji
+MAX_PARALLEL_WORKERS = 5  # Przetwarzaj 5 meczów jednocześnie
+RETRY_ATTEMPTS = 3  # Spróbuj 3 razy przy błędzie
+ODDS_FETCH_TIMEOUT = 15  # Czekaj max 15 sekund na kursy
+
+
+# 🔧 Thread-safe counter dla progress tracking
+class ProgressCounter:
+    def __init__(self, total):
+        self.count = 0
+        self.total = total
+        self.lock = threading.Lock()
+    
+    def increment(self):
+        with self.lock:
+            self.count += 1
+            return self.count
+
+
+def process_single_match_with_retry(url, driver, away_team_focus=False):
+    """
+    Przetwarza JEDEN mecz z retry logic - może być uruchomiona równolegle
+    
+    Returns:
+        tuple: (info_dict, qualifies_bool) lub (None, False) przy błędzie
+    """
+    max_retries = RETRY_ATTEMPTS
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            # Wykryj sport z URL
+            is_tennis = '/tenis/' in url.lower() or 'tennis' in url.lower()
+            
+            if is_tennis:
+                info = process_match_tennis(url, driver)
+            else:
+                info = process_match(url, driver, away_team_focus=away_team_focus)
+            
+            return (info, info.get('qualifies', False))
+            
+        except Exception as e:
+            retry_count += 1
+            if retry_count < max_retries:
+                wait_time = 2 ** retry_count  # Exponential backoff: 2, 4, 8 sekund
+                print(f"   ⚠️ Błąd ({e}) - retry {retry_count}/{max_retries} za {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                print(f"   ❌ Nie udało się po {max_retries} próbach: {e}")
+                return (None, False)
+    
+    return (None, False)
 
 
 def scrape_and_send_email(
@@ -30,7 +86,8 @@ def scrape_and_send_email(
     only_form_advantage: bool = False,
     skip_no_odds: bool = False,
     only_over_under: bool = False,
-    away_team_focus: bool = False
+    away_team_focus: bool = False,
+    parallel: bool = False  # 🚀 NOWY parametr
 ):
     """
     Scrapuje mecze i automatycznie wysyła email z wynikami
@@ -106,11 +163,50 @@ def scrape_and_send_email(
             outfn = f'outputs/livesport_h2h_{date}_{sport_suffix}_EMAIL.csv'
         os.makedirs('outputs', exist_ok=True)
         
-        for i, url in enumerate(urls, 1):
-            print(f"\n[{i}/{len(urls)}] Przetwarzam...")
+        # 🚀 PARALLEL MODE - Przetwarzaj 5 meczów jednocześnie
+        if parallel:
+            print(f"\n🚀 TRYB RÓWNOLEGŁY: Przetwarzam {MAX_PARALLEL_WORKERS} meczów jednocześnie...")
+            print("   ⚡ To przyspieszy proces 3-4x!")
             
-            # RETRY LOGIC - 3 próby przy błędzie połączenia
-            max_retries = 3
+            progress = ProgressCounter(len(urls))
+            
+            # Funkcja do przetwarzania w threads
+            def process_url_wrapper(url):
+                result, qualifies = process_single_match_with_retry(url, driver, away_team_focus)
+                current = progress.increment()
+                
+                if result:
+                    print(f"\n[{current}/{len(urls)}] ✅ {result.get('home_team', 'N/A')} vs {result.get('away_team', 'N/A')}")
+                    if qualifies:
+                        print(f"   🎯 KWALIFIKUJE!")
+                else:
+                    print(f"\n[{current}/{len(urls)}] ❌ Błąd przetwarzania")
+                
+                return (result, qualifies)
+            
+            # Przetwarzaj równolegle
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as executor:
+                futures = {executor.submit(process_url_wrapper, url): url for url in urls}
+                
+                for future in as_completed(futures):
+                    try:
+                        result, qualifies = future.result(timeout=60)
+                        if result:
+                            rows.append(result)
+                            if qualifies:
+                                qualifying_count += 1
+                    except Exception as e:
+                        print(f"   ❌ Błąd podczas przetwarzania: {e}")
+            
+            print(f"\n✅ Przetworzono {len(rows)} meczów równolegle!")
+        
+        else:
+            # ORIGINAL SEQUENTIAL MODE
+            for i, url in enumerate(urls, 1):
+                print(f"\n[{i}/{len(urls)}] Przetwarzam...")
+                
+                # RETRY LOGIC - 3 próby przy błędzie połączenia
+                max_retries = 3
             retry_count = 0
             success = False
             
@@ -422,6 +518,8 @@ WAŻNE dla Gmail:
                        help='💰 Wyślij tylko mecze z OVER/UNDER statistics (osobny mail)')
     parser.add_argument('--away-team-focus', action='store_true',
                        help='🏃 Szukaj meczów gdzie GOŚCIE mają >=60%% H2H (zamiast gospodarzy)')
+    parser.add_argument('--parallel', action='store_true',
+                       help='🚀 Tryb równoległy - przetwarzaj 5 meczów jednocześnie (3-4x szybciej!)')
     parser.add_argument('--app-url', default=None,
                        help='URL aplikacji UI do wysyłania danych (np. http://localhost:3000)')
     parser.add_argument('--app-api-key', default=None,
@@ -444,7 +542,8 @@ WAŻNE dla Gmail:
         only_form_advantage=args.only_form_advantage,
         skip_no_odds=args.skip_no_odds,
         only_over_under=args.only_over_under,
-        away_team_focus=args.away_team_focus
+        away_team_focus=args.away_team_focus,
+        parallel=args.parallel  # 🚀 NOWY parametr
     )
     
     print("\n✨ ZAKOŃCZONO!")

@@ -39,10 +39,10 @@ jobs:
         TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Football dla daty: $TODAY"
         
-        # Mail 1: Zdarzenia z przewagą formy + kursy
+        # Mail 1: Zdarzenia z przewagą formy + kursy (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -51,6 +51,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
           --only-form-advantage \
           --skip-no-odds \
@@ -62,10 +63,10 @@ jobs:
         echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
         sleep 10
         
-        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -74,6 +75,7 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
           --skip-no-odds \
           --app-url "${{ secrets.APP_URL }}" \
@@ -146,10 +148,10 @@ jobs:
         TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Basketball dla daty: $TODAY"
         
-        # Mail 1: Zdarzenia z przewagą formy + kursy
+        # Mail 1: Zdarzenia z przewagą formy + kursy (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -158,19 +160,22 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
         # Poczekaj 10 sekund między mailami
         echo ""
         echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
         sleep 10
         
-        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -179,8 +184,11 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
-          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
         # Mail 3: Over/Under Statistics
         echo ""
@@ -246,10 +254,10 @@ jobs:
         TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Handball dla daty: $TODAY"
         
-        # Mail 1: Zdarzenia z przewagą formy + kursy
+        # Mail 1: Zdarzenia z przewagą formy + kursy (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -258,19 +266,22 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
         # Poczekaj 10 sekund między mailami
         echo ""
         echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
         sleep 10
         
-        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -279,8 +290,11 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
-          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
         # Mail 3: Over/Under Statistics
         echo ""
@@ -346,10 +360,10 @@ jobs:
         TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Volleyball dla daty: $TODAY"
         
-        # Mail 1: Zdarzenia z przewagą formy + kursy
+        # Mail 1: Zdarzenia z przewagą formy + kursy (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -358,19 +372,22 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
         # Poczekaj 10 sekund między mailami
         echo ""
         echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
         sleep 10
         
-        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -379,8 +396,11 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
-          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
         # Mail 3: Over/Under Statistics
         echo ""
@@ -446,10 +466,10 @@ jobs:
         TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Hockey dla daty: $TODAY"
         
-        # Mail 1: Zdarzenia z przewagą formy + kursy
+        # Mail 1: Zdarzenia z przewagą formy + kursy (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY"
+        echo "📧 MAIL 1/2: Zdarzenia z PRZEWAGĄ FORMY + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -458,19 +478,22 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
         # Poczekaj 10 sekund między mailami
         echo ""
         echo "⏳ Czekam 10 sekund przed wysłaniem mail 2..."
         sleep 10
         
-        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami
+        # Mail 2: Wszystkie kwalifikujące się zdarzenia z kursami (PARALLEL MODE 🚀)
         echo ""
         echo "═══════════════════════════════════════════════════════════"
-        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY"
+        echo "📧 MAIL 2/2: WSZYSTKIE KWALIFIKUJĄCE + KURSY (PARALLEL)"
         echo "═══════════════════════════════════════════════════════════"
         python scrape_and_notify.py \
           --date $TODAY \
@@ -479,8 +502,11 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
-          --skip-no-odds || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 2 zakończył się błędem (może brak zdarzeń)"
         
         # Mail 3: Over/Under Statistics
         echo ""
@@ -546,8 +572,8 @@ jobs:
         TODAY=$(TZ=Europe/Warsaw date +%Y-%m-%d)
         echo "🗓️ Scraping Tennis dla daty: $TODAY"
         
-        # Mail 1: Standard kwalifikujące (advanced scoring)
-        echo "📧 MAIL 1/2: Zdarzenia tenisowe z kursami..."
+        # Mail 1: Standard kwalifikujące (advanced scoring) (PARALLEL MODE 🚀)
+        echo "📧 MAIL 1/2: Zdarzenia tenisowe z kursami (PARALLEL)..."
         python scrape_and_notify.py \
           --date $TODAY \
           --sports tennis \
@@ -555,8 +581,11 @@ jobs:
           --from-email jakub.majka.zg@gmail.com \
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
+          --parallel \
           --sort time \
-          --skip-no-odds || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
+          --skip-no-odds \
+          --app-url "${{ secrets.APP_URL }}" \
+          --app-api-key "${{ secrets.APP_API_KEY }}" || echo "⚠️ Mail 1 zakończył się błędem (może brak zdarzeń)"
         
         # Mail 2: Over/Under Statistics (setów)
         echo ""
