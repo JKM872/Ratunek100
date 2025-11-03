@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚽ Livesport Dashboard - Loading...</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background: #1a1a1a; color: #fff; }
+        .container { max-width: 1200px; margin: 40px auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 40px; }
+        h1 { font-size: 32px; margin-bottom: 10px; }
+        .status { background: #2a2a2a; border-left: 4px solid #4CAF50; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .status.loading { border-left-color: #2196F3; }
+        .status.error { border-left-color: #FF5252; }
+        .api-test { background: #1e1e1e; border: 1px solid #333; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .api-test h3 { margin-bottom: 10px; color: #2196F3; }
+        .api-test code { background: #000; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; }
+        .response { background: #000; border: 1px solid #333; padding: 10px; border-radius: 4px; margin-top: 10px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 12px; max-height: 200px; overflow-y: auto; }
+        .success { color: #4CAF50; }
+        .error { color: #FF5252; }
+        button { background: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #1976D2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚽ Livesport Dashboard</h1>
+            <p id="status">🔄 Initializing...</p>
+        </div>
+
+        <div id="root" class="status loading">
+            <h2>🔄 Loading React Dashboard...</h2>
+            <p>If this message persists, React build may not have been deployed correctly.</p>
+            <p>Check the API tests below to verify backend connectivity.</p>
+        </div>
+
+        <div class="api-test">
+            <h3>📊 API Test: /api/stats</h3>
+            <button onclick="testAPI('/api/stats')">Test Stats</button>
+            <div id="stats-response" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="api-test">
+            <h3>🏟️ API Test: /api/matches</h3>
+            <button onclick="testAPI('/api/matches?limit=5')">Test Matches (first 5)</button>
+            <div id="matches-response" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="api-test">
+            <h3>❤️ API Test: /api/health</h3>
+            <button onclick="testAPI('/api/health')">Test Health</button>
+            <div id="health-response" class="response" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testAPI(endpoint) {
+            const responseId = endpoint.replace(/\//g, '-').replace('?', '-');
+            const responseDiv = document.getElementById(responseId + '-response');
+            responseDiv.style.display = 'block';
+            responseDiv.textContent = '⏳ Loading...';
+
+            try {
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                responseDiv.className = 'response ' + (response.ok ? 'success' : 'error');
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = '❌ Error: ' + e.message;
+            }
+        }
+
+        // Load React app if available
+        fetch('/api/health')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('status').innerHTML = '<span class="success">✅ API Connected</span>';
+                    // Try loading the actual React app
+                    document.getElementById('root').innerHTML = '<p>Loading React Dashboard...</p><script src="/assets/index.*.js"><\/script>';
+                }
+            })
+            .catch(e => {
+                document.getElementById('status').innerHTML = '<span class="error">❌ API Unreachable</span>';
+            });
+    </script>
+</body>
+</html>
