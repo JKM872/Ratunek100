@@ -323,7 +323,7 @@ app.get('/api/stats', (req, res) => {
     qualifying: 'SELECT COUNT(*) as value FROM matches WHERE qualifies = 1',
     sports: 'SELECT COUNT(DISTINCT sport) as value FROM matches',
     dates: 'SELECT COUNT(DISTINCT match_date) as value FROM matches',
-    lastUpdate: 'SELECT MAX(scraped_at) as value FROM matches'
+    lastUpdate: 'SELECT MAX(created_at) as value FROM matches'
   };
   
   const results = {};
