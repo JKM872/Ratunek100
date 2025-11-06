@@ -151,10 +151,11 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
     }
     
     let saved = 0;
+    let duplicates = 0;
     let errors = 0;
     
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO matches (
+      INSERT OR IGNORE INTO matches (
         sport, match_date, match_time, home_team, away_team,
         home_odds, away_odds, draw_odds,
         home_win_percentage, draw_percentage, away_win_percentage,
@@ -169,7 +170,7 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
           ? (typeof match.all_odds === 'string' ? match.all_odds : JSON.stringify(match.all_odds))
           : null;
         
-        stmt.run(
+        const result = stmt.run(
           match.sport || sport,
           match.match_date || date,
           match.match_time || null,
@@ -189,7 +190,13 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
           match.bookmaker_name || null,
           match.bookmaker_url || null
         );
-        saved++;
+        
+        // INSERT OR IGNORE returns changes=0 when duplicate
+        if (result.changes === 0) {
+          duplicates++;
+        } else {
+          saved++;
+        }
       } catch (err) {
         console.error(`❌ Error saving match ${match.home_team} vs ${match.away_team}:`, err.message);
         errors++;
@@ -198,15 +205,19 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
     
     stmt.finalize();
     
-    console.log(`✅ Saved ${saved} matches to database`);
+    console.log(`✅ Saved ${saved} new matches to database`);
+    if (duplicates > 0) {
+      console.log(`ℹ️  Ignored ${duplicates} duplicate matches`);
+    }
     if (errors > 0) {
       console.log(`⚠️  ${errors} matches failed to save`);
     }
     
     res.json({ 
       success: true,
-      message: 'Matches saved successfully',
+      message: 'Matches processed successfully',
       saved,
+      duplicates,
       errors,
       total: matches.length
     });
@@ -355,6 +366,163 @@ app.get('/api/stats', (req, res) => {
     .catch(err => {
       res.status(500).json({ success: false, error: err.message });
     });
+});
+
+// DELETE /api/matches/cleanup - Usuń duplikaty, zachowaj najnowsze
+app.delete('/api/matches/cleanup', verifyApiKey, (req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database not available'
+    });
+  }
+
+  // Usuń duplikaty zachowując najnowsze (max ID) dla każdej kombinacji
+  const deleteQuery = `
+    DELETE FROM matches 
+    WHERE id NOT IN (
+      SELECT MAX(id) 
+      FROM matches 
+      GROUP BY sport, home_team, away_team, match_time
+    )
+  `;
+
+  db.run(deleteQuery, function(err) {
+    if (err) {
+      console.error('❌ Error deleting duplicates:', err);
+      return res.status(500).json({ 
+        success: false, 
+        error: err.message 
+      });
+    }
+
+    console.log(`✅ Deleted ${this.changes} duplicate records`);
+    
+    // Sprawdź ile zostało
+    db.get('SELECT COUNT(*) as count FROM matches', (err, row) => {
+      if (err) {
+        return res.json({
+          success: true,
+          deleted: this.changes,
+          remaining: 'unknown'
+        });
+      }
+
+      res.json({
+        success: true,
+        deleted: this.changes,
+        remaining: row.count
+      });
+    });
+  });
+});
+
+// POST /api/migrate/add-unique-constraint - Dodaj UNIQUE constraint przez migrację
+app.post('/api/migrate/add-unique-constraint', verifyApiKey, (req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database not available'
+    });
+  }
+
+  console.log('🔄 Starting migration: Adding UNIQUE constraint...');
+
+  // SQLite nie obsługuje ALTER TABLE ADD CONSTRAINT
+  // Musimy: 1) Stworzyć nową tabelę z constraint
+  //         2) Skopiować dane
+  //         3) Usunąć starą tabelę
+  //         4) Zmienić nazwę nowej tabeli
+
+  db.serialize(() => {
+    // Krok 1: Sprawdź czy constraint już istnieje
+    db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='matches'", (err, row) => {
+      if (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
+
+      if (row && row.sql.includes('UNIQUE')) {
+        return res.json({
+          success: true,
+          message: 'UNIQUE constraint already exists',
+          skipped: true
+        });
+      }
+
+      // Krok 2: Stwórz nową tabelę z UNIQUE constraint
+      db.run(`
+        CREATE TABLE IF NOT EXISTS matches_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sport TEXT,
+          match_date TEXT,
+          match_time TEXT,
+          home_team TEXT,
+          away_team TEXT,
+          home_odds REAL,
+          away_odds REAL,
+          draw_odds REAL,
+          home_win_percentage REAL,
+          draw_percentage REAL,
+          away_win_percentage REAL,
+          avg_home_goals REAL,
+          avg_away_goals REAL,
+          qualifies INTEGER,
+          created_at TEXT,
+          all_odds TEXT,
+          bookmaker_name TEXT,
+          bookmaker_url TEXT,
+          UNIQUE(sport, home_team, away_team, match_time)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('❌ Error creating new table:', err);
+          return res.status(500).json({ success: false, error: err.message });
+        }
+
+        // Krok 3: Skopiuj dane (tylko unikalne)
+        db.run(`
+          INSERT INTO matches_new 
+          SELECT * FROM matches 
+          WHERE id IN (
+            SELECT MAX(id) 
+            FROM matches 
+            GROUP BY sport, home_team, away_team, match_time
+          )
+        `, function(err) {
+          if (err) {
+            console.error('❌ Error copying data:', err);
+            return res.status(500).json({ success: false, error: err.message });
+          }
+
+          const copiedRows = this.changes;
+          console.log(`✅ Copied ${copiedRows} unique records`);
+
+          // Krok 4: Usuń starą tabelę
+          db.run('DROP TABLE matches', (err) => {
+            if (err) {
+              console.error('❌ Error dropping old table:', err);
+              return res.status(500).json({ success: false, error: err.message });
+            }
+
+            // Krok 5: Zmień nazwę nowej tabeli
+            db.run('ALTER TABLE matches_new RENAME TO matches', (err) => {
+              if (err) {
+                console.error('❌ Error renaming table:', err);
+                return res.status(500).json({ success: false, error: err.message });
+              }
+
+              console.log('✅ Migration completed successfully');
+              res.json({
+                success: true,
+                message: 'UNIQUE constraint added successfully',
+                migrated_rows: copiedRows
+              });
+            });
+          });
+        });
+      });
+    });
+  });
 });
 
 // GET /api/sports - Lista sportów
