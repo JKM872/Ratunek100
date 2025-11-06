@@ -460,7 +460,7 @@ app.post('/api/migrate/add-unique-constraint', verifyApiKey, (req, res) => {
         });
       }
 
-      // Krok 2: Stwórz nową tabelę z UNIQUE constraint
+      // Krok 2: Stwórz nową tabelę z UNIQUE constraint i wszystkimi kolumnami
       db.run(`
         CREATE TABLE IF NOT EXISTS matches_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -490,10 +490,22 @@ app.post('/api/migrate/add-unique-constraint', verifyApiKey, (req, res) => {
           return res.status(500).json({ success: false, error: err.message });
         }
 
-        // Krok 3: Skopiuj dane (tylko unikalne)
+        // Krok 3: Skopiuj dane (tylko unikalne) - użyj wszystkich kolumn które istnieją
         db.run(`
-          INSERT INTO matches_new 
-          SELECT * FROM matches 
+          INSERT INTO matches_new (
+            id, sport, match_date, match_time, home_team, away_team,
+            home_odds, away_odds, draw_odds,
+            home_win_percentage, draw_percentage, away_win_percentage,
+            avg_home_goals, avg_away_goals,
+            qualifies, created_at, all_odds, bookmaker_name, bookmaker_url
+          )
+          SELECT 
+            id, sport, match_date, match_time, home_team, away_team,
+            home_odds, away_odds, draw_odds,
+            home_win_percentage, draw_percentage, away_win_percentage,
+            avg_home_goals, avg_away_goals,
+            qualifies, created_at, all_odds, bookmaker_name, bookmaker_url
+          FROM matches 
           WHERE id IN (
             SELECT MAX(id) 
             FROM matches 
@@ -502,38 +514,74 @@ app.post('/api/migrate/add-unique-constraint', verifyApiKey, (req, res) => {
         `, function(err) {
           if (err) {
             console.error('❌ Error copying data:', err);
-            return res.status(500).json({ success: false, error: err.message });
+            // Może stara tabela nie ma avg_goals kolumn - spróbuj bez nich
+            db.run(`
+              INSERT INTO matches_new (
+                id, sport, match_date, match_time, home_team, away_team,
+                home_odds, away_odds, draw_odds,
+                home_win_percentage, draw_percentage, away_win_percentage,
+                qualifies, created_at, all_odds, bookmaker_name, bookmaker_url
+              )
+              SELECT 
+                id, sport, match_date, match_time, home_team, away_team,
+                home_odds, away_odds, draw_odds,
+                home_win_percentage, draw_percentage, away_win_percentage,
+                qualifies, created_at, all_odds, bookmaker_name, bookmaker_url
+              FROM matches 
+              WHERE id IN (
+                SELECT MAX(id) 
+                FROM matches 
+                GROUP BY sport, home_team, away_team, match_time
+              )
+            `, function(err2) {
+              if (err2) {
+                console.error('❌ Error copying data (fallback):', err2);
+                return res.status(500).json({ success: false, error: err2.message });
+              }
+
+              const copiedRows = this.changes;
+              console.log(`✅ Copied ${copiedRows} unique records (without avg_goals)`);
+
+              // Usuń starą i zmień nazwę
+              finalizeMigration(copiedRows, res);
+            });
+            return;
           }
 
           const copiedRows = this.changes;
           console.log(`✅ Copied ${copiedRows} unique records`);
 
-          // Krok 4: Usuń starą tabelę
-          db.run('DROP TABLE matches', (err) => {
-            if (err) {
-              console.error('❌ Error dropping old table:', err);
-              return res.status(500).json({ success: false, error: err.message });
-            }
-
-            // Krok 5: Zmień nazwę nowej tabeli
-            db.run('ALTER TABLE matches_new RENAME TO matches', (err) => {
-              if (err) {
-                console.error('❌ Error renaming table:', err);
-                return res.status(500).json({ success: false, error: err.message });
-              }
-
-              console.log('✅ Migration completed successfully');
-              res.json({
-                success: true,
-                message: 'UNIQUE constraint added successfully',
-                migrated_rows: copiedRows
-              });
-            });
-          });
+          // Usuń starą i zmień nazwę
+          finalizeMigration(copiedRows, res);
         });
       });
     });
   });
+  
+  function finalizeMigration(copiedRows, res) {
+    // Krok 4: Usuń starą tabelę
+    db.run('DROP TABLE matches', (err) => {
+      if (err) {
+        console.error('❌ Error dropping old table:', err);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+
+      // Krok 5: Zmień nazwę nowej tabeli
+      db.run('ALTER TABLE matches_new RENAME TO matches', (err) => {
+        if (err) {
+          console.error('❌ Error renaming table:', err);
+          return res.status(500).json({ success: false, error: err.message });
+        }
+
+        console.log('✅ Migration completed successfully');
+        res.json({
+          success: true,
+          message: 'UNIQUE constraint added successfully',
+          migrated_rows: copiedRows
+        });
+      });
+    });
+  }
 });
 
 // GET /api/sports - Lista sportów
