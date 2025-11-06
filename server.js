@@ -584,6 +584,55 @@ app.post('/api/migrate/add-unique-constraint', verifyApiKey, (req, res) => {
   }
 });
 
+// POST /api/migrate/add-avg-goals-columns - Dodaj kolumny avg_goals do istniejącej tabeli
+app.post('/api/migrate/add-avg-goals-columns', verifyApiKey, (req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database not available'
+    });
+  }
+
+  console.log('🔄 Adding avg_goals columns to matches table...');
+
+  // Sprawdź czy kolumny już istnieją
+  db.get("PRAGMA table_info(matches)", (err, row) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+
+    // Dodaj kolumny (SQLite ignoruje jeśli już istnieją)
+    db.serialize(() => {
+      db.run('ALTER TABLE matches ADD COLUMN avg_home_goals REAL', (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('❌ Error adding avg_home_goals:', err);
+          return res.status(500).json({ success: false, error: err.message });
+        }
+        console.log('✅ Added avg_home_goals column (or already exists)');
+      });
+
+      db.run('ALTER TABLE matches ADD COLUMN avg_away_goals REAL', (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('❌ Error adding avg_away_goals:', err);
+          return res.status(500).json({ success: false, error: err.message });
+        }
+        console.log('✅ Added avg_away_goals column (or already exists)');
+        
+        // Sprawdź ile rekordów ma NULL w nowych kolumnach
+        db.get('SELECT COUNT(*) as count FROM matches WHERE avg_home_goals IS NULL', (err, row) => {
+          const nullCount = row ? row.count : 0;
+          
+          res.json({
+            success: true,
+            message: 'avg_goals columns added successfully',
+            records_with_null_avg_goals: nullCount
+          });
+        });
+      });
+    });
+  });
+});
+
 // GET /api/sports - Lista sportów
 app.get('/api/sports', (req, res) => {
   if (!db) {
