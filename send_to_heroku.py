@@ -29,6 +29,7 @@ print(f'✅ Response Status: {response.status_code}')
 if response.status_code == 200:
     result = response.json()
     print(f"✅ Saved: {result.get('saved', 0)}/{result.get('total', 0)}")
+    print(f"ℹ️  Duplicates ignored: {result.get('duplicates', 0)}")
     print(f"❌ Errors: {result.get('errors', 0)}")
     print(f"\n🎉 Data successfully uploaded to Heroku!")
 else:
