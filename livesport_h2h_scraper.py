@@ -760,6 +760,44 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
             if VERBOSE:
                 print(f"   ⚠️ Błąd analizy O/U: {e}")
 
+    # ==================================================================
+    # ŚREDNIE BRAMEK/PUNKTÓW - Oblicz z H2H
+    # ==================================================================
+    try:
+        if len(h2h) > 0:
+            home_goals_sum = 0
+            away_goals_sum = 0
+            valid_matches = 0
+            
+            for match in h2h:
+                # Każdy mecz H2H powinien mieć score w formacie "X:Y"
+                score = match.get('score', '')
+                if score and ':' in score:
+                    try:
+                        parts = score.split(':')
+                        home_score = int(parts[0].strip())
+                        away_score = int(parts[1].strip())
+                        home_goals_sum += home_score
+                        away_goals_sum += away_score
+                        valid_matches += 1
+                    except (ValueError, IndexError):
+                        pass  # Pomiń nieprawidłowe wyniki
+            
+            if valid_matches > 0:
+                out['avg_home_goals'] = round(home_goals_sum / valid_matches, 2)
+                out['avg_away_goals'] = round(away_goals_sum / valid_matches, 2)
+            else:
+                out['avg_home_goals'] = None
+                out['avg_away_goals'] = None
+        else:
+            out['avg_home_goals'] = None
+            out['avg_away_goals'] = None
+    except Exception as e:
+        if VERBOSE:
+            print(f"   ⚠️ Błąd obliczania średnich bramek: {e}")
+        out['avg_home_goals'] = None
+        out['avg_away_goals'] = None
+
     return out
 
 
