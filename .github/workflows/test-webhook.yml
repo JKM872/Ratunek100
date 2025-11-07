@@ -1,0 +1,112 @@
+name: 🧪 Test Webhook Integration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-webhook:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: 📦 Install dependencies
+      run: |
+        pip install requests
+    
+    - name: 🧪 Test webhook endpoint
+      run: |
+        echo "🔍 Testing webhook connection..."
+        echo "APP_URL: ${{ secrets.APP_URL }}"
+        echo "API_KEY: [HIDDEN]"
+        
+        python3 << 'EOF'
+        import requests
+        import json
+        from datetime import datetime
+        
+        APP_URL = "${{ secrets.APP_URL }}"
+        API_KEY = "${{ secrets.APP_API_KEY }}"
+        
+        # Test 1: Health check
+        print("\n📊 TEST 1: Health Check")
+        print("="*50)
+        response = requests.get(f"{APP_URL}/api/health")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
+        
+        # Test 2: Debug endpoint
+        print("\n📊 TEST 2: Debug Endpoint")
+        print("="*50)
+        response = requests.get(f"{APP_URL}/api/webhook/debug")
+        data = response.json()
+        print(f"Status: {response.status_code}")
+        print(f"Total matches in DB: {data.get('total_matches', 0)}")
+        
+        # Test 3: Send test data
+        print("\n📊 TEST 3: Send Test Data")
+        print("="*50)
+        
+        test_matches = [
+            {
+                'sport': 'hockey',
+                'home_team': 'Test Home',
+                'away_team': 'Test Away',
+                'match_time': datetime.now().isoformat(),
+                'home_odds': 2.5,
+                'away_odds': 1.8,
+                'qualifies': 1,
+                'avg_home_goals': 3.2,
+                'avg_away_goals': 2.8
+            }
+        ]
+        
+        headers = {
+            'Authorization': f'Bearer {API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'matches': test_matches,
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'sport': 'hockey'
+        }
+        
+        print(f"Sending {len(test_matches)} test matches...")
+        response = requests.post(
+            f"{APP_URL}/api/webhook/matches",
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+        
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
+        
+        if response.status_code == 200:
+            print("\n✅ WEBHOOK TEST PASSED!")
+        else:
+            print("\n❌ WEBHOOK TEST FAILED!")
+            exit(1)
+        
+        # Test 4: Verify data saved
+        print("\n📊 TEST 4: Verify Data Saved")
+        print("="*50)
+        response = requests.get(f"{APP_URL}/api/webhook/debug")
+        data = response.json()
+        print(f"Total matches now: {data.get('total_matches', 0)}")
+        
+        if data.get('total_matches', 0) > 0:
+            print("✅ Data saved successfully!")
+        else:
+            print("❌ No data in database!")
+            exit(1)
+        
+        EOF
