@@ -124,6 +124,63 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// POST /api/test-webhook - Test endpoint without auth
+app.post('/api/test-webhook', (req, res) => {
+  console.log('🧪 TEST WEBHOOK called');
+  console.log('Headers:', JSON.stringify(req.headers).substring(0, 200));
+  console.log('Body size:', JSON.stringify(req.body).length);
+  
+  res.json({
+    success: true,
+    message: 'Test webhook works!',
+    received_bytes: JSON.stringify(req.body).length,
+    has_matches: req.body && req.body.matches ? req.body.matches.length : 0,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// GET /api/webhook/debug - Check database status
+app.get('/api/webhook/debug', (req, res) => {
+  if (!db || !dbConnected) {
+    return res.json({
+      success: false,
+      error: 'Database not connected',
+      dbPath: DB_PATH
+    });
+  }
+  
+  db.get('SELECT COUNT(*) as total FROM matches', (err, countRow) => {
+    if (err) {
+      return res.json({ success: false, error: err.message });
+    }
+    
+    db.all('SELECT * FROM matches ORDER BY created_at DESC LIMIT 5', (err, rows) => {
+      if (err) {
+        return res.json({ success: false, error: err.message });
+      }
+      
+      res.json({
+        success: true,
+        total_matches: countRow.total || 0,
+        last_5_matches: rows || [],
+        sample_match: rows && rows[0] ? {
+          id: rows[0].id,
+          sport: rows[0].sport,
+          home_team: rows[0].home_team,
+          away_team: rows[0].away_team,
+          home_odds: rows[0].home_odds,
+          away_odds: rows[0].away_odds,
+          avg_home_goals: rows[0].avg_home_goals,
+          avg_away_goals: rows[0].avg_away_goals,
+          qualifies: rows[0].qualifies,
+          created_at: rows[0].created_at
+        } : null,
+        timestamp: new Date().toISOString()
+      });
+    });
+  });
+});
+
 // POST /api/webhook/matches - Receive matches from scraper
 app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
   try {
