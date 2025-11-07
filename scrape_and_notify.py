@@ -409,15 +409,24 @@ def scrape_and_send_email(
         if app_url:
             print(f"\n🔗 KROK 4/4: Wysyłanie danych do aplikacji UI...")
             print("="*70)
+            print(f"   📍 APP_URL: {app_url}")
+            print(f"   🔑 API_KEY: {'[SET]' if app_api_key else '[NOT SET]'}")
+            print(f"   📊 Mecze do wysłania: {len(rows)}")
             
             try:
                 # Utwórz integrator
                 integrator = AppIntegrator(app_url=app_url, api_key=app_api_key)
                 
                 # Testuj połączenie
-                if integrator.test_connection():
+                print(f"   🔍 Testuję połączenie...")
+                connection_ok = integrator.test_connection()
+                print(f"   {'✅' if connection_ok else '❌'} Test połączenia: {'OK' if connection_ok else 'FAILED'}")
+                
+                if connection_ok:
                     # Wyślij mecze do aplikacji
                     sport_name = '_'.join(sports) if len(sports) <= 2 else 'multi'
+                    
+                    print(f"   📤 Wysyłam {len(rows)} meczów...")
                     success = integrator.send_matches(
                         matches=rows,
                         date=date,
@@ -429,7 +438,7 @@ def scrape_and_send_email(
                     else:
                         print("   ⚠️  Nie udało się wysłać danych do aplikacji")
                 else:
-                    print("   ⚠️  Nie można połączyć się z aplikacją - pomijam")
+                    print("   ❌ Połączenie nieudane - pomijam wysyłanie danych")
             
             except Exception as e:
                 print(f"   ⚠️  Błąd wysyłania do aplikacji: {e}")
