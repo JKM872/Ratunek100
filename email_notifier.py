@@ -826,7 +826,13 @@ def send_email_notification(
         
         html_content = create_over_under_html_email(matches, date, sport=sport)
     else:
-        html_content = create_html_email(matches, date, sort_by=sort_by)
+        # ✅ V2: Use new email formatter with Fortuna/Superbet/STS filtering
+        from email_formatter import get_email_formatter
+        formatter = get_email_formatter()
+        html_content = formatter.format_matches_for_email(matches)
+        
+        # Note: Old function was: create_html_email(matches, date, sort_by=sort_by)
+        # New formatter handles bookmaker filtering automatically
     
     html_part = MIMEText(html_content, 'html')
     msg.attach(html_part)
