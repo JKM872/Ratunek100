@@ -269,95 +269,95 @@ def scrape_and_send_email(
             
                 while retry_count < max_retries and not success:
                     try:
-                    # Wykryj sport z URL (tennis ma '/tenis/' w URLu)
-                    is_tennis = '/tenis/' in url.lower() or 'tennis' in url.lower()
-                    
-                    if is_tennis:
-                        # Użyj dedykowanej funkcji dla tenisa (ADVANCED)
-                        info = process_match_tennis(url, driver)
-                        rows.append(info)
+                        # Wykryj sport z URL (tennis ma '/tenis/' w URLu)
+                        is_tennis = '/tenis/' in url.lower() or 'tennis' in url.lower()
                         
-                        if info['qualifies']:
-                            qualifying_count += 1
-                            player_a_wins = info['home_wins_in_h2h_last5']
-                            player_b_wins = info.get('away_wins_in_h2h', 0)
-                            advanced_score = info.get('advanced_score', 0)
-                            favorite = info.get('favorite', 'unknown')
+                        if is_tennis:
+                            # Użyj dedykowanej funkcji dla tenisa (ADVANCED)
+                            info = process_match_tennis(url, driver)
+                            rows.append(info)
                             
-                            # Określ faworyta
-                            if favorite == 'player_a':
-                                fav_name = info['home_team']
-                            elif favorite == 'player_b':
-                                fav_name = info['away_team']
+                            if info['qualifies']:
+                                qualifying_count += 1
+                                player_a_wins = info['home_wins_in_h2h_last5']
+                                player_b_wins = info.get('away_wins_in_h2h', 0)
+                                advanced_score = info.get('advanced_score', 0)
+                                favorite = info.get('favorite', 'unknown')
+                                
+                                # Określ faworyta
+                                if favorite == 'player_a':
+                                    fav_name = info['home_team']
+                                elif favorite == 'player_b':
+                                    fav_name = info['away_team']
+                                else:
+                                    fav_name = "Równi"
+                                
+                                print(f"   ✅ KWALIFIKUJE! {info['home_team']} vs {info['away_team']}")
+                                print(f"      Faworytem: {fav_name} (Score: {advanced_score:.1f}/100)")
                             else:
-                                fav_name = "Równi"
+                                player_a_wins = info['home_wins_in_h2h_last5']
+                                player_b_wins = info.get('away_wins_in_h2h', 0)
+                                advanced_score = info.get('advanced_score', 0)
+                                print(f"   ❌ Nie kwalifikuje (Score: {advanced_score:.1f}/100, H2H: {player_a_wins}-{player_b_wins})")
                             
-                            print(f"   ✅ KWALIFIKUJE! {info['home_team']} vs {info['away_team']}")
-                            print(f"      Faworytem: {fav_name} (Score: {advanced_score:.1f}/100)")
-                        else:
-                            player_a_wins = info['home_wins_in_h2h_last5']
-                            player_b_wins = info.get('away_wins_in_h2h', 0)
-                            advanced_score = info.get('advanced_score', 0)
-                            print(f"   ❌ Nie kwalifikuje (Score: {advanced_score:.1f}/100, H2H: {player_a_wins}-{player_b_wins})")
+                            success = True  # Sukces, wyjdź z retry loop
                         
-                        success = True  # Sukces, wyjdź z retry loop
-                    
-                    else:
-                        # Sporty drużynowe
-                        info = process_match(url, driver, away_team_focus=away_team_focus)
-                        rows.append(info)
-                        
-                        if info['qualifies']:
-                            qualifying_count += 1
-                            h2h_count = info.get('h2h_count', 0)
-                            win_rate = info.get('win_rate', 0.0)
-                            home_form = info.get('home_form', [])
-                            away_form = info.get('away_form', [])
-                            
-                            home_form_str = '-'.join(home_form) if home_form else 'N/A'
-                            away_form_str = '-'.join(away_form) if away_form else 'N/A'
-                            
-                            # Wybierz co pokazać w zależności od trybu
-                            if away_team_focus:
-                                wins_count = info.get('away_wins_in_h2h_last5', 0)
-                                focused_team = info['away_team']
-                            else:
-                                wins_count = info['home_wins_in_h2h_last5']
-                                focused_team = info['home_team']
-                            
-                            print(f"   ✅ KWALIFIKUJE! {info['home_team']} vs {info['away_team']}")
-                            print(f"      Fokus: {focused_team}")
-                            print(f"      H2H: {wins_count}/{h2h_count} ({win_rate*100:.0f}%)")
-                            if home_form or away_form:
-                                print(f"      Forma: {info['home_team']} [{home_form_str}] | {info['away_team']} [{away_form_str}]")
                         else:
-                            h2h_count = info.get('h2h_count', 0)
-                            win_rate = info.get('win_rate', 0.0)
-                            if h2h_count > 0:
+                            # Sporty drużynowe
+                            info = process_match(url, driver, away_team_focus=away_team_focus)
+                            rows.append(info)
+                            
+                            if info['qualifies']:
+                                qualifying_count += 1
+                                h2h_count = info.get('h2h_count', 0)
+                                win_rate = info.get('win_rate', 0.0)
+                                home_form = info.get('home_form', [])
+                                away_form = info.get('away_form', [])
+                                
+                                home_form_str = '-'.join(home_form) if home_form else 'N/A'
+                                away_form_str = '-'.join(away_form) if away_form else 'N/A'
+                                
+                                # Wybierz co pokazać w zależności od trybu
                                 if away_team_focus:
                                     wins_count = info.get('away_wins_in_h2h_last5', 0)
+                                    focused_team = info['away_team']
                                 else:
                                     wins_count = info['home_wins_in_h2h_last5']
-                                print(f"   ❌ Nie kwalifikuje ({wins_count}/{h2h_count} = {win_rate*100:.0f}%)")
+                                    focused_team = info['home_team']
+                                
+                                print(f"   ✅ KWALIFIKUJE! {info['home_team']} vs {info['away_team']}")
+                                print(f"      Fokus: {focused_team}")
+                                print(f"      H2H: {wins_count}/{h2h_count} ({win_rate*100:.0f}%)")
+                                if home_form or away_form:
+                                    print(f"      Forma: {info['home_team']} [{home_form_str}] | {info['away_team']} [{away_form_str}]")
                             else:
-                                print(f"   ⚠️  Brak H2H")
-                        
-                        success = True  # Sukces, wyjdź z retry loop
+                                h2h_count = info.get('h2h_count', 0)
+                                win_rate = info.get('win_rate', 0.0)
+                                if h2h_count > 0:
+                                    if away_team_focus:
+                                        wins_count = info.get('away_wins_in_h2h_last5', 0)
+                                    else:
+                                        wins_count = info['home_wins_in_h2h_last5']
+                                    print(f"   ❌ Nie kwalifikuje ({wins_count}/{h2h_count} = {win_rate*100:.0f}%)")
+                                else:
+                                    print(f"   ⚠️  Brak H2H")
+                            
+                            success = True  # Sukces, wyjdź z retry loop
                     
-                except (ConnectionResetError, ConnectionError, Exception) as e:
-                    retry_count += 1
-                    if retry_count < max_retries:
-                        print(f"   ⚠️  Błąd połączenia (próba {retry_count}/{max_retries}): {str(e)[:100]}")
-                        print(f"   🔄 Restartowanie przeglądarki i ponowienie próby...")
-                        try:
-                            driver.quit()
-                        except:
-                            pass
-                        time.sleep(3)
-                        driver = start_driver(headless=headless)
-                    else:
-                        print(f"   ❌ Błąd po {max_retries} próbach: {str(e)[:100]}")
-                        print(f"   ⏭️  Pomijam ten mecz i kontynuuję...")
+                    except (ConnectionResetError, ConnectionError, Exception) as e:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            print(f"   ⚠️  Błąd połączenia (próba {retry_count}/{max_retries}): {str(e)[:100]}")
+                            print(f"   🔄 Restartowanie przeglądarki i ponowienie próby...")
+                            try:
+                                driver.quit()
+                            except:
+                                pass
+                            time.sleep(3)
+                            driver = start_driver(headless=headless)
+                        else:
+                            print(f"   ❌ Błąd po {max_retries} próbach: {str(e)[:100]}")
+                            print(f"   ⏭️  Pomijam ten mecz i kontynuuję...")
             
             # CHECKPOINT - zapisz co 30 meczów (bezpieczeństwo danych!)
             if i % CHECKPOINT_INTERVAL == 0 and len(rows) > 0:
