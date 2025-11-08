@@ -260,30 +260,44 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
           
           console.log(`   Processing batch ${batchNum}/${totalBatches} (${batch.length} matches)...`);
           
-          const { data, error } = await supabase
-            .from('matches')
-            .upsert(batch, {
-              onConflict: 'sport,home_team,away_team,match_time',
-              ignoreDuplicates: false
-            });
+          // Process each match individually to handle duplicates properly
+          const batchPromises = batch.map(async (match) => {
+            try {
+              const { data, error } = await supabase
+                .from('matches')
+                .insert(match)
+                .select();
+              
+              if (error) {
+                // Check if it's a duplicate error (unique constraint violation)
+                if (error.code === '23505' || error.message.includes('duplicate') || error.message.includes('unique')) {
+                  duplicates++;
+                } else {
+                  console.error(`   ⚠️  Insert error:`, error.message);
+                  errors++;
+                }
+              } else {
+                saved++;
+              }
+            } catch (err) {
+              console.error(`   ❌ Exception:`, err.message);
+              errors++;
+            }
+          });
           
-          if (error) {
-            console.error(`   ❌ Batch ${batchNum} error:`, error.message);
-            errors += batch.length;
-          } else {
-            saved += batch.length;
-          }
+          await Promise.all(batchPromises);
         }
         
         console.log(`\n✅ Supabase webhook complete:`);
         console.log(`   💾 Saved: ${saved}`);
+        console.log(`   🔄 Duplicates: ${duplicates}`);
         console.log(`   ❌ Errors: ${errors}`);
         
         return res.json({ 
           success: true,
           message: 'Matches processed successfully (Supabase)',
           saved,
-          duplicates: 0,
+          duplicates,
           errors,
           total: matches.length,
           database: 'supabase'
