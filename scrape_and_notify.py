@@ -60,10 +60,23 @@ def process_single_match_with_retry(url, driver, away_team_focus=False):
             # Wykryj sport z URL
             is_tennis = '/tenis/' in url.lower() or 'tennis' in url.lower()
             
+            # ✅ V6: Detect sport type for dynamic betType selection
+            detected_sport = None
+            if '/siatkowka/' in url.lower() or '/volleyball/' in url.lower():
+                detected_sport = 'volleyball'
+            elif '/pilka-reczna/' in url.lower() or '/handball/' in url.lower():
+                detected_sport = 'handball'
+            elif '/koszykowka/' in url.lower() or '/basketball/' in url.lower():
+                detected_sport = 'basketball'
+            elif '/tenis/' in url.lower() or '/tennis/' in url.lower():
+                detected_sport = 'tennis'
+            else:
+                detected_sport = 'football'
+            
             if is_tennis:
                 info = process_match_tennis(url, driver)
             else:
-                info = process_match(url, driver, away_team_focus=away_team_focus)
+                info = process_match(url, driver, away_team_focus=away_team_focus, sport=detected_sport)
             
             return (info, info.get('qualifies', False))
             
@@ -290,6 +303,19 @@ def scrape_and_send_email(
                         # Wykryj sport z URL (tennis ma '/tenis/' w URLu)
                         is_tennis = '/tenis/' in url.lower() or 'tennis' in url.lower()
                         
+                        # ✅ V6: Detect sport type for dynamic betType selection
+                        detected_sport = None
+                        if '/siatkowka/' in url.lower() or '/volleyball/' in url.lower():
+                            detected_sport = 'volleyball'
+                        elif '/pilka-reczna/' in url.lower() or '/handball/' in url.lower():
+                            detected_sport = 'handball'
+                        elif '/koszykowka/' in url.lower() or '/basketball/' in url.lower():
+                            detected_sport = 'basketball'
+                        elif '/tenis/' in url.lower() or '/tennis/' in url.lower():
+                            detected_sport = 'tennis'
+                        else:
+                            detected_sport = 'football'
+                        
                         if is_tennis:
                             # Użyj dedykowanej funkcji dla tenisa (ADVANCED)
                             info = process_match_tennis(url, driver)
@@ -322,7 +348,7 @@ def scrape_and_send_email(
                         
                         else:
                             # Sporty drużynowe
-                            info = process_match(url, driver, away_team_focus=away_team_focus)
+                            info = process_match(url, driver, away_team_focus=away_team_focus, sport=detected_sport)
                             rows.append(info)
                             
                             if info['qualifies']:

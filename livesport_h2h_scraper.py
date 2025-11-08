@@ -331,13 +331,14 @@ def _parse_h2h_rows(match_rows: list, debug_url: str = None) -> List[Dict]:
     return results
 
 
-def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = False) -> Dict:
+def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = False, sport: str = None) -> Dict:
     """Odwiedza stronę meczu, otwiera H2H i zwraca informację we właściwym formacie.
     
     Args:
         url: URL meczu
         driver: Selenium WebDriver
         away_team_focus: Jeśli True, liczy zwycięstwa GOŚCI w H2H zamiast gospodarzy
+        sport: Sport type (volleyball, handball, football, basketball, etc.) for dynamic betType
     """
     out = {
         'match_url': url,
@@ -635,8 +636,21 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
     # UŻYWAMY PRAWDZIWEGO API LIVESPORT z MULTI-BOOKMAKER SUPPORT!
     # V4: Dodano tenacity @retry + fallback handling
     # V5: FALLBACK SELENIUM dla volleyball/tennis/handball (API nie ma pokrycia)
+    # V6: Przekaż sport do API dla dynamic betType (HOME_AWAY vs HOME_DRAW_AWAY)
     try:
-        odds = extract_betting_odds_with_api(url, use_multi_bookmaker=True)  # V2: Wielu bukmacherów
+        # ✅ V6: Detect sport from URL if not provided
+        detected_sport = sport
+        if not detected_sport:
+            if '/siatkowka/' in url or '/volleyball/' in url:
+                detected_sport = 'volleyball'
+            elif '/pilka-reczna/' in url or '/handball/' in url:
+                detected_sport = 'handball'
+            elif '/koszykowka/' in url or '/basketball/' in url:
+                detected_sport = 'basketball'
+            else:
+                detected_sport = 'football'  # default
+        
+        odds = extract_betting_odds_with_api(url, use_multi_bookmaker=True, sport=detected_sport)  # V6: Sport param
         
         # FALLBACK: Jeśli API nie zwróciło kursów (np. volleyball/tennis/handball)
         if not odds.get('home_odds') and not odds.get('away_odds'):
@@ -1191,9 +1205,14 @@ def extract_team_form(soup: BeautifulSoup, driver: webdriver.Chrome, side: str, 
     retry=retry_if_exception_type((ConnectionError, TimeoutError, Exception)),
     reraise=False  # V5: Zwróć result zamiast raise - pozwala fallback Selenium działać
 )
-def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) -> Dict[str, Optional[float]]:
+def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True, sport: str = None) -> Dict[str, Optional[float]]:
     """
     Ekstraktuj kursy bukmacherskie używając LiveSport GraphQL API.
+    
+    WERSJA V6 (DODANO DYNAMIC betType) - obsługa volleyball/handball (HOME_AWAY betType)!
+    - Dodano parametr sport dla dynamicznego wyboru betType
+    - HOME_AWAY dla volleyball/handball/tennis (brak remisu)
+    - HOME_DRAW_AWAY dla football/basketball (z remisem)
     
     WERSJA V4 (MAKSYMALNA NIEZAWODNOŚĆ) - dodano @retry decorator dla 95%+ success rate!
     - @retry z tenacity: 3 próby z exponential backoff (2, 4, 8 sekund)
@@ -1260,7 +1279,8 @@ def extract_betting_odds_with_api(url: str, use_multi_bookmaker: bool = True) ->
                 odds = None
                 for attempt in range(3):
                     try:
-                        odds = client.get_odds_from_url(url)
+                        # ✅ V6: Przekaż sport do API dla dynamic betType selection
+                        odds = client.get_odds_from_url(url, sport=sport)
                         if odds and (odds.get('home_odds') or odds.get('away_odds')):
                             break
                         if attempt < 2:

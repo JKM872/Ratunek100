@@ -115,18 +115,26 @@ class LiveSportOddsAPI:
             return None
     
     
-    def get_odds_for_event(self, event_id: str) -> Optional[Dict]:
+    def get_odds_for_event(self, event_id: str, sport: str = None) -> Optional[Dict]:
         """
         Pobiera kursy bukmacherskie dla konkretnego wydarzenia
         
         UŻYWA PRAWDZIWEGO ENDPOINTA LIVESPORT z RETRY MECHANISM (3 próby)
+        ✅ NOWE: Obsługa sportów bez remisu (Volleyball, Handball)
         
         Args:
             event_id: ID wydarzenia z Livesport (np. "KQAaF7d2")
+            sport: Nazwa sportu (dla Volleyball/Handball używa HOME_AWAY zamiast HOME_DRAW_AWAY)
         
         Returns:
             Słownik z kursami lub None
         """
+        
+        # ✅ NOWE: Określ betType na podstawie sportu
+        if sport and sport.lower() in ['volleyball', 'handball', 'tennis']:
+            bet_type = 'HOME_AWAY'  # Brak remisu
+        else:
+            bet_type = 'HOME_DRAW_AWAY'  # Z remisem (Football, Basketball, etc.)
         
         # PRÓBA 1-3: Główny endpoint (3 próby z exponential backoff)
         for attempt in range(3):
@@ -136,7 +144,7 @@ class LiveSportOddsAPI:
                     '_hash': 'ope2',  # Hash dla kursów ("odds per bookmaker")
                     'eventId': event_id,
                     'bookmakerId': self.bookmaker_id,
-                    'betType': 'HOME_DRAW_AWAY',  # Typ zakładu: 1X2
+                    'betType': bet_type,  # ✅ NOWE: Dynamicznie wybierane
                     'betScope': 'FULL_TIME'  # Pełen czas (nie połowy)
                 }
                 
@@ -314,12 +322,15 @@ class LiveSportOddsAPI:
             return None
     
     
-    def get_odds_from_url(self, match_url: str) -> Optional[Dict]:
+    def get_odds_from_url(self, match_url: str, sport: str = None) -> Optional[Dict]:
         """
         Pobiera kursy bukmacherskie bezpośrednio z URL meczu
         
+        ✅ NOWE: Obsługuje sport parameter dla Volleyball/Handball
+        
         Args:
             match_url: Pełny URL meczu z Livesport
+            sport: Nazwa sportu (automatycznie wykrywana z URL lub podana ręcznie)
         
         Returns:
             Słownik z kursami (jak get_odds_for_event) lub None
@@ -327,9 +338,18 @@ class LiveSportOddsAPI:
         Example:
             >>> client = LiveSportOddsAPI()
             >>> url = "https://www.livesport.com/pl/mecz/pilka-nozna/team1/team2/?mid=ABC123"
-            >>> odds = client.get_odds_from_url(url)
+            >>> odds = client.get_odds_from_url(url, sport='volleyball')
             >>> print(f"Home: {odds['home_odds']}, Away: {odds['away_odds']}")
         """
+        # ✅ NOWE: Wykryj sport z URL jeśli nie podano
+        if not sport:
+            if '/siatkowka/' in match_url or '/volleyball/' in match_url:
+                sport = 'volleyball'
+            elif '/pilka-reczna/' in match_url or '/handball/' in match_url:
+                sport = 'handball'
+            elif '/tenis/' in match_url or '/tennis/' in match_url:
+                sport = 'tennis'
+        
         # Wydobądź Event ID z URL
         event_id = self.extract_event_id_from_url(match_url)
         
@@ -337,8 +357,8 @@ class LiveSportOddsAPI:
             print(f"   ⚠️ Nie znaleziono Event ID w URL: {match_url}")
             return None
         
-        # Pobierz kursy dla tego event
-        return self.get_odds_for_event(event_id)
+        # ✅ NOWE: Pobierz kursy dla tego event Z SPORT PARAMETER
+        return self.get_odds_for_event(event_id, sport=sport)
     
     
     def get_over_under_odds(self, event_id: str, sport: str = 'football') -> Optional[Dict]:
