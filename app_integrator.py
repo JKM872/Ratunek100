@@ -35,7 +35,7 @@ class AppIntegrator:
     
     def send_matches(self, matches: List[Dict], date: str, sport: str, endpoint: str = '/api/webhook/matches') -> bool:
         """
-        Wyślij mecze do aplikacji
+        Wyślij mecze do aplikacji w BATCH MODE
         
         Args:
             matches: Lista meczów (dict)
@@ -46,6 +46,46 @@ class AppIntegrator:
         Returns:
             True jeśli sukces, False jeśli błąd
         """
+        import time
+        
+        # Dla małych zbiorów - wyślij wszystko naraz
+        if len(matches) <= 100:
+            return self._send_single_batch(matches, date, sport, endpoint)
+        
+        # Dla dużych zbiorów - wysyłaj w paczkach po 100
+        print(f"\n📦 Duży zbiór ({len(matches)} meczów) - wysyłam w paczkach po 100...")
+        
+        BATCH_SIZE = 100
+        total_batches = (len(matches) + BATCH_SIZE - 1) // BATCH_SIZE
+        success_count = 0
+        fail_count = 0
+        
+        for i in range(0, len(matches), BATCH_SIZE):
+            batch = matches[i:i + BATCH_SIZE]
+            batch_num = (i // BATCH_SIZE) + 1
+            
+            print(f"\n   📤 Batch {batch_num}/{total_batches} ({len(batch)} meczów)...")
+            
+            if self._send_single_batch(batch, date, sport, endpoint):
+                success_count += 1
+                print(f"      ✅ Batch {batch_num} zapisany")
+            else:
+                fail_count += 1
+                print(f"      ❌ Batch {batch_num} failed")
+            
+            # Przerwa między batchami (nie dla ostatniego)
+            if i + BATCH_SIZE < len(matches):
+                print(f"      ⏸️  Czekam 2s...")
+                time.sleep(2)
+        
+        print(f"\n✅ Wysłano {success_count}/{total_batches} batchy")
+        if fail_count > 0:
+            print(f"⚠️  {fail_count} batchy nie udały się")
+        
+        return fail_count == 0
+    
+    def _send_single_batch(self, matches: List[Dict], date: str, sport: str, endpoint: str) -> bool:
+        """Wyślij pojedynczą paczkę meczów (internal method)"""
         url = f"{self.app_url}{endpoint}"
         
         payload = {
@@ -59,34 +99,29 @@ class AppIntegrator:
         }
         
         try:
-            print(f"\n📤 Wysyłam dane do aplikacji...")
-            print(f"   URL: {url}")
-            print(f"   Sport: {sport}")
-            print(f"   Mecze: {len(matches)} (kwalifikujących: {payload['qualified_count']})")
-            
-            response = requests.post(url, json=payload, headers=self.headers, timeout=30)
+            response = requests.post(url, json=payload, headers=self.headers, timeout=60)
             
             if response.status_code in [200, 201, 202]:
-                print(f"   ✅ Sukces! Status: {response.status_code}")
                 try:
                     response_data = response.json()
-                    print(f"   📨 Odpowiedź: {response_data}")
+                    saved = response_data.get('saved', 0)
+                    duplicates = response_data.get('duplicates', 0)
+                    print(f"      � Saved: {saved}, ⏭️ Duplicates: {duplicates}")
                 except:
                     pass
                 return True
             else:
-                print(f"   ❌ Błąd! Status: {response.status_code}")
-                print(f"   Odpowiedź: {response.text[:200]}")
+                print(f"      ❌ Status: {response.status_code}")
                 return False
                 
         except requests.exceptions.ConnectionError:
-            print(f"   ❌ Błąd połączenia! Sprawdź czy aplikacja działa pod adresem: {self.app_url}")
+            print(f"      ❌ Connection error: {self.app_url}")
             return False
         except requests.exceptions.Timeout:
-            print(f"   ❌ Timeout! Aplikacja nie odpowiedziała w ciągu 30 sekund")
+            print(f"      ❌ Timeout (60s)")
             return False
         except Exception as e:
-            print(f"   ❌ Błąd: {e}")
+            print(f"      ❌ Error: {e}")
             return False
     
     def send_progress(self, progress: int, total: int, current_match: str, endpoint: str = '/api/webhook/progress') -> bool:

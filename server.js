@@ -181,7 +181,7 @@ app.get('/api/webhook/debug', (req, res) => {
   });
 });
 
-// POST /api/webhook/matches - Receive matches from scraper
+// POST /api/webhook/matches - Receive matches from scraper (OPTIMIZED with batching)
 app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
   try {
     const { matches, date, sport } = req.body;
@@ -210,85 +210,82 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
     let saved = 0;
     let duplicates = 0;
     let errors = 0;
-    let processed = 0;
     
-    const totalMatches = matches.length;
-    
-    // Process matches one by one with callbacks to track changes
-    const processMatch = (index) => {
-      if (index >= totalMatches) {
-        console.log(`✅ Saved ${saved} new matches to database`);
-        if (duplicates > 0) {
-          console.log(`ℹ️  Ignored ${duplicates} duplicate matches`);
-        }
-        if (errors > 0) {
-          console.log(`⚠️  ${errors} matches failed to save`);
-        }
+    // Promisify database insert
+    const insertMatch = (match) => {
+      return new Promise((resolve) => {
+        const all_odds_json = match.all_odds
+          ? (typeof match.all_odds === 'string' ? match.all_odds : JSON.stringify(match.all_odds))
+          : null;
         
-        return res.json({ 
-          success: true,
-          message: 'Matches processed successfully',
-          saved,
-          duplicates,
-          errors,
-          total: totalMatches
-        });
-      }
-      
-      const match = matches[index];
-      const all_odds_json = match.all_odds
-        ? (typeof match.all_odds === 'string' ? match.all_odds : JSON.stringify(match.all_odds))
-        : null;
-      
-      db.run(`
-        INSERT OR IGNORE INTO matches (
-          sport, match_date, match_time, home_team, away_team,
-          home_odds, away_odds, draw_odds,
-          home_win_percentage, draw_percentage, away_win_percentage,
-          avg_home_goals, avg_away_goals,
-          qualifies, created_at, all_odds, bookmaker_name, bookmaker_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        match.sport || sport,
-        match.match_date || date,
-        match.match_time || null,
-        match.home_team,
-        match.away_team,
-        match.home_odds || null,
-        match.away_odds || null,
-        match.draw_odds || null,
-        match.home_win_percentage || null,
-        match.draw_percentage || null,
-        match.away_win_percentage || null,
-        match.avg_home_goals || null,
-        match.avg_away_goals || null,
-        match.qualifies || 0,
-        match.created_at || new Date().toISOString(),
-        all_odds_json,
-        match.bookmaker_name || null,
-        match.bookmaker_url || null
-      ],
-      function(err) {
-        if (err) {
-          console.error(`❌ Error saving match ${match.home_team} vs ${match.away_team}:`, err.message);
-          errors++;
-        } else {
-          // this.changes = 0 means INSERT OR IGNORE caught a duplicate
-          if (this.changes === 0) {
+        db.run(`
+          INSERT OR IGNORE INTO matches (
+            sport, match_date, match_time, home_team, away_team,
+            home_odds, away_odds, draw_odds,
+            home_win_percentage, draw_percentage, away_win_percentage,
+            avg_home_goals, avg_away_goals,
+            qualifies, created_at, all_odds, bookmaker_name, bookmaker_url
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          match.sport || sport,
+          match.match_date || date,
+          match.match_time || null,
+          match.home_team,
+          match.away_team,
+          match.home_odds || null,
+          match.away_odds || null,
+          match.draw_odds || null,
+          match.home_win_percentage || null,
+          match.draw_percentage || null,
+          match.away_win_percentage || null,
+          match.avg_home_goals || null,
+          match.avg_away_goals || null,
+          match.qualifies || 0,
+          match.created_at || new Date().toISOString(),
+          all_odds_json,
+          match.bookmaker_name || null,
+          match.bookmaker_url || null
+        ],
+        function(err) {
+          if (err) {
+            errors++;
+          } else if (this.changes === 0) {
             duplicates++;
           } else {
             saved++;
           }
-        }
-        
-        // Process next match
-        processMatch(index + 1);
+          resolve();
+        });
       });
     };
     
-    // Start processing
-    processMatch(0);
+    // Process in batches of 50 to avoid overwhelming database
+    const BATCH_SIZE = 50;
+    const totalBatches = Math.ceil(matches.length / BATCH_SIZE);
+    
+    for (let i = 0; i < matches.length; i += BATCH_SIZE) {
+      const batch = matches.slice(i, i + BATCH_SIZE);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      
+      console.log(`   Processing batch ${batchNum}/${totalBatches} (${batch.length} matches)...`);
+      await Promise.all(batch.map(m => insertMatch(m)));
+    }
+    
+    console.log(`\n✅ Webhook complete:`);
+    console.log(`   💾 Saved: ${saved}`);
+    console.log(`   ⏭️  Duplicates: ${duplicates}`);
+    console.log(`   ❌ Errors: ${errors}`);
+    
+    return res.json({ 
+      success: true,
+      message: 'Matches processed successfully',
+      saved,
+      duplicates,
+      errors,
+      total: matches.length
+    });
+    
   } catch (err) {
     console.error('❌ Webhook error:', err);
     res.status(500).json({ 

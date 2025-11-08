@@ -7,6 +7,8 @@ import os
 import sys
 import json
 import gc  # Garbage collector dla zarządzania pamięcią
+import signal  # Obsługa timeoutów
+import psutil  # Monitoring pamięci
 from datetime import datetime
 from livesport_h2h_scraper import start_driver, get_match_links_from_day, process_match, process_match_tennis
 from email_notifier import send_email_notification
@@ -21,6 +23,12 @@ import threading
 MAX_PARALLEL_WORKERS = 5  # Przetwarzaj 5 meczów jednocześnie
 RETRY_ATTEMPTS = 3  # Spróbuj 3 razy przy błędzie
 ODDS_FETCH_TIMEOUT = 15  # Czekaj max 15 sekund na kursy
+
+# ⏱️ TIMEOUT & MEMORY CONFIG (dla GitHub Actions)
+TIMEOUT_MINUTES = 330  # 5.5 godzin = 330 minut (zostaw 30 min marginesu przed 6h limitem)
+MAX_MEMORY_GB = 6.0  # GitHub Actions ma ~7GB, zostaw 1GB marginesu
+timeout_triggered = False  # Flaga globalna
+start_time = None  # Czas startu scrapingu
 
 
 # 🔧 Thread-safe counter dla progress tracking
@@ -71,6 +79,35 @@ def process_single_match_with_retry(url, driver, away_team_focus=False):
     return (None, False)
 
 
+def timeout_handler(signum, frame):
+    """Obsługa timeoutu - GitHub Actions ma 6h limit"""
+    global timeout_triggered
+    timeout_triggered = True
+    print("\n" + "="*70)
+    print("⏱️  TIMEOUT! Osiągnięto limit czasu (5.5h) - rozpoczynam graceful shutdown...")
+    print("="*70)
+    # Nie wyrzucaj błędu - pozwól zapisać częściowe dane
+
+
+def check_memory_usage():
+    """Sprawdź zużycie pamięci (GitHub Actions ma ~7GB)"""
+    try:
+        process = psutil.Process(os.getpid())
+        mem_gb = process.memory_info().rss / (1024 ** 3)  # Pamięć w GB
+        
+        if mem_gb > MAX_MEMORY_GB:
+            print(f"\n⚠️  Wysokie zużycie pamięci: {mem_gb:.2f}GB (limit: {MAX_MEMORY_GB}GB)")
+            print("   Uruchamiam garbage collector...")
+            gc.collect()
+            mem_after = process.memory_info().rss / (1024 ** 3)
+            print(f"   Pamięć po GC: {mem_after:.2f}GB (zwolniono: {mem_gb - mem_after:.2f}GB)")
+            return mem_after
+        
+        return mem_gb
+    except:
+        return 0.0
+
+
 def scrape_and_send_email(
     date: str,
     sports: list,
@@ -107,6 +144,12 @@ def scrape_and_send_email(
         only_over_under: Wysyłaj tylko mecze z OVER/UNDER statistics (💰)
         away_team_focus: Szukaj meczów gdzie GOŚCIE mają ≥60% H2H (zamiast gospodarzy) (🏃)
     """
+    global start_time, timeout_triggered
+    
+    # Setup timeout handler
+    start_time = time.time()
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(TIMEOUT_MINUTES * 60)  # Ustaw alarm na 5.5h
     
     print("="*70)
     print("🤖 AUTOMATYCZNY SCRAPING + POWIADOMIENIE EMAIL")
@@ -115,6 +158,8 @@ def scrape_and_send_email(
     print(f"⚽ Sporty: {', '.join(sports)}")
     print(f"📧 Email do: {to_email}")
     print(f"🔧 Provider: {provider}")
+    print(f"⏱️  Timeout: {TIMEOUT_MINUTES} minut (5.5h)")
+    print(f"💾 Memory limit: {MAX_MEMORY_GB}GB")
     if away_team_focus:
         print(f"🏃 TRYB: Fokus na drużynach GOŚCI (away teams) ≥60% H2H")
     if only_form_advantage:
@@ -203,15 +248,27 @@ def scrape_and_send_email(
         else:
             # ORIGINAL SEQUENTIAL MODE
             for i, url in enumerate(urls, 1):
+                # ⏱️ Sprawdź timeout
+                if timeout_triggered:
+                    print(f"\n⚠️  Timeout! Przerywam scraping po {i-1} meczach...")
+                    print(f"   💾 Zapisuję częściowe dane ({len(rows)} meczów)...")
+                    break
+                
+                # 💾 Sprawdź pamięć co 10 meczów
+                if i % 10 == 0:
+                    mem_usage = check_memory_usage()
+                    elapsed = (time.time() - start_time) / 60
+                    print(f"\n📊 Status: Mecz {i}/{len(urls)} | Pamięć: {mem_usage:.2f}GB | Czas: {elapsed:.1f}min")
+                
                 print(f"\n[{i}/{len(urls)}] Przetwarzam...")
                 
                 # RETRY LOGIC - 3 próby przy błędzie połączenia
                 max_retries = 3
-            retry_count = 0
-            success = False
+                retry_count = 0
+                success = False
             
-            while retry_count < max_retries and not success:
-                try:
+                while retry_count < max_retries and not success:
+                    try:
                     # Wykryj sport z URL (tennis ma '/tenis/' w URLu)
                     is_tennis = '/tenis/' in url.lower() or 'tennis' in url.lower()
                     

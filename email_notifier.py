@@ -835,25 +835,51 @@ def send_email_notification(
     try:
         print(f"\nWysylam email do: {to_email}")
         print(f"   Provider: {provider}")
+        print(f"   From: {from_email}")
+        print(f"   Subject: {subject}")
         
         smtp_config = SMTP_CONFIG[provider]
+        print(f"   SMTP: {smtp_config['server']}:{smtp_config['port']}")
         
         with smtplib.SMTP(smtp_config['server'], smtp_config['port']) as server:
+            server.set_debuglevel(0)  # 0=off, 1=on (debug SMTP)
+            
             if smtp_config['use_tls']:
+                print("   ✅ Starting TLS...")
                 server.starttls()
             
-            server.login(from_email, password)
+            print("   🔐 Logging in...")
+            try:
+                server.login(from_email, password)
+                print("   ✅ Login successful!")
+            except smtplib.SMTPAuthenticationError as auth_err:
+                print(f"\n❌ AUTHENTICATION FAILED!")
+                print(f"   Error: {auth_err}")
+                print("\n🔧 ROZWIĄZANIA:")
+                print("   1. Gmail: Użyj App Password (nie zwykłego hasła)")
+                print("      👉 https://myaccount.google.com/apppasswords")
+                print("   2. Outlook: Sprawdź czy 2FA jest włączone")
+                print("   3. Yahoo: Włącz 'Less Secure Apps' w ustawieniach")
+                print("   4. Sprawdź login (pełny email) i hasło")
+                raise
+            
+            print("   📧 Sending message...")
             server.send_message(msg)
         
-        print("Email wyslany pomyslnie!")
+        print("✅ Email wyslany pomyslnie!")
         
+    except smtplib.SMTPAuthenticationError:
+        # Already handled above with detailed message
+        pass
+    except smtplib.SMTPException as smtp_err:
+        print(f"\n❌ SMTP ERROR: {smtp_err}")
+        print(f"   Type: {type(smtp_err).__name__}")
+        print(f"   Server: {smtp_config['server']}:{smtp_config['port']}")
     except Exception as e:
-        print(f"Blad wysylania emaila: {e}")
-        print("\nWSKAZOWKI:")
-        print("   - Dla Gmail: uzyj App Password (nie zwyklego hasla)")
-        print("     Jak uzyskac: https://myaccount.google.com/apppasswords")
-        print("   - Sprawdz czy SMTP jest wlaczony w ustawieniach konta")
-        print("   - Sprawdz dane logowania")
+        print(f"\n❌ UNEXPECTED ERROR: {e}")
+        print(f"   Type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
 
 
 def main():

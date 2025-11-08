@@ -105,7 +105,10 @@ function App() {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 60000) // Odświeżanie co minutę
+    const interval = setInterval(() => {
+      console.log('🔄 Refreshing data...')
+      fetchData()
+    }, 30000) // Odświeżanie co 30 sekund (szybsze updates)
     return () => clearInterval(interval)
   }, [filters])
 
