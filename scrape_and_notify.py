@@ -13,6 +13,7 @@ from datetime import datetime
 from livesport_h2h_scraper import start_driver, get_match_links_from_day, process_match, process_match_tennis
 from email_notifier import send_email_notification
 from app_integrator import AppIntegrator, create_integrator_from_config
+from supabase_scraper import get_supabase_integrator
 import pandas as pd
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -479,7 +480,36 @@ def scrape_and_send_email(
             else:
                 print(f"\n⚠️  Brak kwalifikujących się meczów - email nie został wysłany")
         
-        # KROK 4: Wyślij dane do aplikacji UI (jeśli skonfigurowane)
+        # ✅ KROK 3.5: SUPABASE - Wyślij do cloud database (NOWE!)
+        if len(rows) > 0:
+            print(f"\n{'='*70}")
+            print(f"☁️  SUPABASE: Wysyłanie do cloud database")
+            print(f"{'='*70}")
+            
+            try:
+                supabase_integrator = get_supabase_integrator()
+                sport_name = '_'.join(sports) if len(sports) <= 2 else 'multi'
+                
+                result = supabase_integrator.send_matches(
+                    matches=rows,
+                    date=date,
+                    sport=sport_name
+                )
+                
+                if result.get('success'):
+                    print(f"✅ Supabase sync successful!")
+                    print(f"   💾 Saved: {result.get('saved', 0)}")
+                    print(f"   🔄 Duplicates: {result.get('duplicates', 0)}")
+                else:
+                    print(f"⚠️  Supabase sync failed: {result.get('error', 'Unknown error')}")
+            
+            except Exception as e:
+                print(f"❌ Supabase error: {e}")
+                import traceback
+                traceback.print_exc()
+                print(f"💡 Continuing with webhook fallback...")
+        
+        # KROK 4: Wyślij dane do aplikacji UI (WEBHOOK FALLBACK - jeśli skonfigurowane)
         if app_url:
             print(f"\n🔗 KROK 4/4: Wysyłanie danych do aplikacji UI...")
             print("="*70)
