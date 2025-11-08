@@ -406,12 +406,61 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
 });
 
 // GET /api/matches - Pobierz mecze
-app.get('/api/matches', (req, res) => {
+app.get('/api/matches', async (req, res) => {
+  // ✅ SUPABASE - Try cloud database first
+  if (useSupabase && supabase) {
+    try {
+      const { date, sport, qualifies, limit = 100 } = req.query;
+      
+      let query = supabase.from('matches').select('*');
+      
+      if (date) {
+        query = query.eq('match_date', date);
+      }
+      
+      if (sport) {
+        query = query.eq('sport', sport);
+      }
+      
+      if (qualifies === 'true' || qualifies === '1') {
+        query = query.eq('qualifies', 1);
+      }
+      
+      const { data, error } = await query
+        .order('match_date', { ascending: false })
+        .order('match_time', { ascending: true })
+        .limit(parseInt(limit));
+      
+      if (error) {
+        console.error('❌ Supabase query error:', error);
+        throw error; // Fall back to SQLite
+      }
+      
+      const matches = (data || []).map(row => ({
+        ...row,
+        qualifies: Boolean(row.qualifies),
+        form_advantage: Boolean(row.form_advantage)
+      }));
+      
+      return res.json({
+        success: true,
+        count: matches.length,
+        matches,
+        database: 'supabase'
+      });
+      
+    } catch (supabaseError) {
+      console.error('❌ Supabase error:', supabaseError);
+      // Fall back to SQLite below
+    }
+  }
+  
+  // ❌ SQLITE FALLBACK
   if (!db || !dbConnected) {
     return res.status(503).json({
       success: false,
       error: 'Database not available',
-      message: 'Run Python scraper first to create the database',
+      message: 'Supabase failed and SQLite not available',
       database: {
         path: DB_PATH,
         exists: fs.existsSync(DB_PATH),
@@ -490,13 +539,63 @@ app.get('/api/matches', (req, res) => {
     res.json({
       success: true,
       count: matches.length,
-      matches
+      matches,
+      database: 'sqlite'
     });
   });
 });
 
 // GET /api/stats - Statystyki
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', async (req, res) => {
+  // ✅ SUPABASE - Try cloud database first
+  if (useSupabase && supabase) {
+    try {
+      const { count: total } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true });
+      
+      const { count: qualifying } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('qualifies', 1);
+      
+      const { data: sports } = await supabase
+        .from('matches')
+        .select('sport');
+      
+      const uniqueSports = [...new Set(sports?.map(s => s.sport) || [])].length;
+      
+      const { data: dates } = await supabase
+        .from('matches')
+        .select('match_date');
+      
+      const uniqueDates = [...new Set(dates?.map(d => d.match_date) || [])].length;
+      
+      const { data: lastMatch } = await supabase
+        .from('matches')
+        .select('created_at')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      return res.json({
+        success: true,
+        stats: {
+          total_matches: total || 0,
+          qualifying_matches: qualifying || 0,
+          unique_sports: uniqueSports,
+          date_range: uniqueDates,
+          last_update: lastMatch?.[0]?.created_at || null
+        },
+        database: 'supabase'
+      });
+      
+    } catch (supabaseError) {
+      console.error('❌ Supabase stats error:', supabaseError);
+      // Fall back to SQLite below
+    }
+  }
+  
+  // ❌ SQLITE FALLBACK
   if (!db) {
     return res.status(503).json({
       success: false,
@@ -535,7 +634,8 @@ app.get('/api/stats', (req, res) => {
           unique_sports: results.sports,
           date_range: results.dates,
           last_update: results.lastUpdate
-        }
+        },
+        database: 'sqlite'
       });
     })
     .catch(err => {
@@ -992,7 +1092,39 @@ app.post('/api/migrate/add-avg-goals-columns', verifyApiKey, (req, res) => {
 });
 
 // GET /api/sports - Lista sportów
-app.get('/api/sports', (req, res) => {
+app.get('/api/sports', async (req, res) => {
+  // ✅ SUPABASE - Try cloud database first
+  if (useSupabase && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select('sport, qualifies');
+      
+      if (error) throw error;
+      
+      // Group by sport manually
+      const sportMap = {};
+      data.forEach(row => {
+        if (!sportMap[row.sport]) {
+          sportMap[row.sport] = { sport: row.sport, total_count: 0, qualifying_count: 0 };
+        }
+        sportMap[row.sport].total_count++;
+        if (row.qualifies === 1) {
+          sportMap[row.sport].qualifying_count++;
+        }
+      });
+      
+      const sports = Object.values(sportMap).sort((a, b) => b.total_count - a.total_count);
+      
+      return res.json({ success: true, sports, database: 'supabase' });
+      
+    } catch (supabaseError) {
+      console.error('❌ Supabase sports error:', supabaseError);
+      // Fall back to SQLite below
+    }
+  }
+  
+  // ❌ SQLITE FALLBACK
   if (!db) {
     return res.status(503).json({
       success: false,
@@ -1012,7 +1144,7 @@ app.get('/api/sports', (req, res) => {
       if (err) {
         return res.status(500).json({ success: false, error: err.message });
       }
-      res.json({ success: true, sports: rows });
+      res.json({ success: true, sports: rows, database: 'sqlite' });
     }
   );
 });
