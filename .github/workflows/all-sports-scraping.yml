@@ -61,7 +61,8 @@ jobs:
           --headless \
           --sort time \
           --only-form-advantage \
-          --skip-no-odds
+          --skip-no-odds \
+          --parallel
         
         # Poczekaj 5 sekund między mailami
         sleep 5
@@ -76,7 +77,8 @@ jobs:
           --password "${{ secrets.EMAIL_PASSWORD }}" \
           --headless \
           --sort time \
-          --skip-no-odds
+          --skip-no-odds \
+          --parallel
       
       env:
         DISPLAY: ':99'

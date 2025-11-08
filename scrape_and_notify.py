@@ -21,7 +21,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 import threading
 
 # 🚀 Konfiguracja optymalizacji
-MAX_PARALLEL_WORKERS = 5  # Przetwarzaj 5 meczów jednocześnie
+MAX_PARALLEL_WORKERS = 8  # Przetwarzaj 8 meczów jednocześnie (ZMIENIONE z 5 na 8 - PHASE 3)
 RETRY_ATTEMPTS = 3  # Spróbuj 3 razy przy błędzie
 ODDS_FETCH_TIMEOUT = 15  # Czekaj max 15 sekund na kursy
 
@@ -238,10 +238,10 @@ def scrape_and_send_email(
             outfn = f'outputs/livesport_h2h_{date}_{sport_suffix}_EMAIL.csv'
         os.makedirs('outputs', exist_ok=True)
         
-        # 🚀 PARALLEL MODE - Przetwarzaj 5 meczów jednocześnie
+        # 🚀 PARALLEL MODE - Przetwarzaj 8 meczów jednocześnie
         if parallel:
             print(f"\n🚀 TRYB RÓWNOLEGŁY: Przetwarzam {MAX_PARALLEL_WORKERS} meczów jednocześnie...")
-            print("   ⚡ To przyspieszy proces 3-4x!")
+            print("   ⚡ To przyspieszy proces 5-8x! (było 3-4x przy 5 workers)")
             
             progress = ProgressCounter(len(urls))
             
