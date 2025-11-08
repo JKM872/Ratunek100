@@ -482,6 +482,200 @@ app.delete('/api/matches/cleanup', verifyApiKey, (req, res) => {
   });
 });
 
+// POST /api/matches/deduplicate - Usuwanie duplikatów (lepsza wersja)
+app.post('/api/matches/deduplicate', verifyApiKey, async (req, res) => {
+  if (!db || !dbConnected) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database not available'
+    });
+  }
+
+  console.log('\n' + '='.repeat(70));
+  console.log('🧹 DEDUPLICATION: Removing duplicate matches...');
+  console.log('='.repeat(70));
+
+  try {
+    // Krok 1: Policz duplikaty
+    db.get(`
+      SELECT COUNT(*) as duplicates FROM (
+        SELECT sport, home_team, away_team, match_date, match_time, COUNT(*) as cnt
+        FROM matches
+        GROUP BY sport, home_team, away_team, match_date, match_time
+        HAVING cnt > 1
+      )
+    `, (err, dupRow) => {
+      if (err) {
+        console.error('❌ Error counting duplicates:', err);
+        return res.status(500).json({ success: false, error: err.message });
+      }
+
+      const duplicateGroups = dupRow ? dupRow.duplicates : 0;
+      console.log(`📊 Found ${duplicateGroups} duplicate groups`);
+
+      // Krok 2: Usuń duplikaty - zachowaj najnowszy (max ID)
+      db.run(`
+        DELETE FROM matches
+        WHERE id NOT IN (
+          SELECT MAX(id)
+          FROM matches
+          GROUP BY sport, home_team, away_team, match_date, match_time
+        )
+      `, function(err) {
+        if (err) {
+          console.error('❌ Error deleting duplicates:', err);
+          return res.status(500).json({ success: false, error: err.message });
+        }
+
+        const deletedCount = this.changes;
+        console.log(`🗑️  Deleted ${deletedCount} duplicate records`);
+
+        // Krok 3: Policz ile zostało
+        db.get('SELECT COUNT(*) as total FROM matches', (err, countRow) => {
+          if (err) {
+            return res.status(500).json({ success: false, error: err.message });
+          }
+
+          const totalRemaining = countRow ? countRow.total : 0;
+          console.log(`✅ Remaining: ${totalRemaining} unique matches\n`);
+
+          res.json({
+            success: true,
+            message: 'Deduplication complete',
+            duplicate_groups_found: duplicateGroups,
+            records_deleted: deletedCount,
+            records_remaining: totalRemaining
+          });
+        });
+      });
+    });
+  } catch (err) {
+    console.error('❌ Deduplication error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/matches/normalize-sports - Normalizacja nazw sportów
+app.post('/api/matches/normalize-sports', verifyApiKey, async (req, res) => {
+  if (!db || !dbConnected) {
+    return res.status(503).json({ success: false, error: 'Database not available' });
+  }
+
+  console.log('\n🔄 NORMALIZING: Sport names...');
+
+  const sportMap = {
+    'volleyball': 'Volleyball',
+    'Volleyball': 'Volleyball',
+    'VOLLEYBALL': 'Volleyball',
+    'volley': 'Volleyball',
+    'Volley': 'Volleyball',
+    'pilka-reczna': 'Handball',
+    'handball': 'Handball',
+    'Handball': 'Handball',
+    'HANDBALL': 'Handball',
+    'reczna': 'Handball',
+    'football': 'Football',
+    'Football': 'Football',
+    'FOOTBALL': 'Football',
+    'soccer': 'Football',
+    'Soccer': 'Football',
+    'basketball': 'Basketball',
+    'Basketball': 'Basketball',
+    'BASKETBALL': 'Basketball',
+    'ice-hockey': 'Ice Hockey',
+    'hockey': 'Ice Hockey',
+    'Hockey': 'Ice Hockey',
+    'HOCKEY': 'Ice Hockey'
+  };
+
+  let updated = 0;
+  const promises = [];
+
+  for (const [oldSport, newSport] of Object.entries(sportMap)) {
+    const promise = new Promise((resolve) => {
+      db.run(
+        'UPDATE matches SET sport = ? WHERE LOWER(sport) = LOWER(?)',
+        [newSport, oldSport],
+        function(err) {
+          if (err) {
+            console.error(`❌ Error updating ${oldSport}:`, err);
+          } else {
+            if (this.changes > 0) {
+              console.log(`✅ Updated ${this.changes} records: ${oldSport} → ${newSport}`);
+              updated += this.changes;
+            }
+          }
+          resolve();
+        }
+      );
+    });
+    promises.push(promise);
+  }
+
+  await Promise.all(promises);
+
+  res.json({
+    success: true,
+    message: 'Sport normalization complete',
+    records_updated: updated
+  });
+});
+
+// GET /api/matches/inspect - Inspekcja danych (debug)
+app.get('/api/matches/inspect', (req, res) => {
+  if (!db || !dbConnected) {
+    return res.status(503).json({ success: false, error: 'Database not available' });
+  }
+
+  const { sport, limit = 10 } = req.query;
+
+  let query = `
+    SELECT 
+      id, sport, home_team, away_team, match_date, match_time,
+      home_odds, away_odds, draw_odds,
+      avg_home_goals, avg_away_goals,
+      qualifies, created_at
+    FROM matches
+    WHERE 1=1
+  `;
+  
+  const params = [];
+  
+  if (sport) {
+    query += ' AND sport = ?';
+    params.push(sport);
+  }
+  
+  query += ' ORDER BY created_at DESC LIMIT ?';
+  params.push(parseInt(limit));
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+
+    // Statystyka pól
+    const stats = {
+      total: rows.length,
+      with_home_odds: rows.filter(r => r.home_odds !== null && r.home_odds !== undefined).length,
+      with_away_odds: rows.filter(r => r.away_odds !== null && r.away_odds !== undefined).length,
+      with_draw_odds: rows.filter(r => r.draw_odds !== null && r.draw_odds !== undefined).length,
+      with_avg_goals: rows.filter(r => r.avg_home_goals !== null && r.avg_away_goals !== null).length,
+      null_home_odds: rows.filter(r => !r.home_odds).length,
+      null_away_odds: rows.filter(r => !r.away_odds).length,
+      null_avg_goals: rows.filter(r => !r.avg_home_goals || !r.avg_away_goals).length
+    };
+
+    res.json({
+      success: true,
+      sport_filter: sport || 'ALL',
+      stats,
+      sample_matches: rows.slice(0, 3),
+      all_matches: rows
+    });
+  });
+});
+
 // POST /api/migrate/add-unique-constraint - Dodaj UNIQUE constraint przez migrację
 app.post('/api/migrate/add-unique-constraint', verifyApiKey, (req, res) => {
   if (!db) {
