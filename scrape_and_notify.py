@@ -79,14 +79,23 @@ def process_single_match_with_retry(url, driver, away_team_focus=False):
     return (None, False)
 
 
-def timeout_handler(signum, frame):
-    """Obsługa timeoutu - GitHub Actions ma 6h limit"""
+def timeout_handler(signum=None, frame=None):
+    """Obsługa timeoutu - GitHub Actions ma 6h limit (tylko Linux/Unix)"""
     global timeout_triggered
     timeout_triggered = True
     print("\n" + "="*70)
     print("⏱️  TIMEOUT! Osiągnięto limit czasu (5.5h) - rozpoczynam graceful shutdown...")
     print("="*70)
     # Nie wyrzucaj błędu - pozwól zapisać częściowe dane
+
+
+def check_timeout():
+    """Sprawdź czy przekroczono timeout (działa na Windows i Linux)"""
+    global start_time, timeout_triggered
+    if start_time and time.time() - start_time > TIMEOUT_MINUTES * 60:
+        timeout_handler()
+        return True
+    return timeout_triggered
 
 
 def check_memory_usage():
@@ -146,10 +155,17 @@ def scrape_and_send_email(
     """
     global start_time, timeout_triggered
     
-    # Setup timeout handler
+    # Setup timeout handler (only for Linux/Unix - GitHub Actions)
     start_time = time.time()
-    signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(TIMEOUT_MINUTES * 60)  # Ustaw alarm na 5.5h
+    timeout_triggered = False
+    
+    # SIGALRM only works on Unix/Linux (not Windows)
+    if hasattr(signal, 'SIGALRM'):
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(TIMEOUT_MINUTES * 60)  # Ustaw alarm na 5.5h
+        print(f"⏱️  Unix/Linux: Ustawiono SIGALRM timeout na {TIMEOUT_MINUTES} min")
+    else:
+        print(f"⏱️  Windows: Używam manual timeout check co 10 meczów ({TIMEOUT_MINUTES} min)")
     
     print("="*70)
     print("🤖 AUTOMATYCZNY SCRAPING + POWIADOMIENIE EMAIL")
@@ -248,17 +264,18 @@ def scrape_and_send_email(
         else:
             # ORIGINAL SEQUENTIAL MODE
             for i, url in enumerate(urls, 1):
-                # ⏱️ Sprawdź timeout
-                if timeout_triggered:
+                # ⏱️ Sprawdź timeout (działa na Windows i Linux)
+                if check_timeout():
                     print(f"\n⚠️  Timeout! Przerywam scraping po {i-1} meczach...")
                     print(f"   💾 Zapisuję częściowe dane ({len(rows)} meczów)...")
                     break
                 
-                # 💾 Sprawdź pamięć co 10 meczów
+                # 💾 Sprawdź pamięć i timeout co 10 meczów
                 if i % 10 == 0:
                     mem_usage = check_memory_usage()
                     elapsed = (time.time() - start_time) / 60
                     print(f"\n📊 Status: Mecz {i}/{len(urls)} | Pamięć: {mem_usage:.2f}GB | Czas: {elapsed:.1f}min")
+                    check_timeout()  # Dodatkowy check na Windows
                 
                 print(f"\n[{i}/{len(urls)}] Przetwarzam...")
                 
