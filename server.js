@@ -3,10 +3,29 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.SCRAPER_API_KEY || 'super-secret-key-12345';
+
+// ✅ SUPABASE CONFIG (Cloud database - działa wszędzie!)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://bfslhqnxsgmdyptrqshj.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmc2xocW54c2dtZHlwdHJxc2hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MDU3NTYsImV4cCI6MjA3ODE4MTc1Nn0.QMiCdK8L-UFjeTAT9a5sPzXo_A8azpZe3p4SnfM0Fi8';
+
+// Supabase client (jeśli dostępny)
+let supabase = null;
+let useSupabase = false;
+
+if (SUPABASE_URL && SUPABASE_KEY) {
+  try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    useSupabase = true;
+    console.log('✅ Supabase client initialized');
+  } catch (err) {
+    console.warn('⚠️  Supabase not available, using SQLite fallback');
+  }
+}
 
 // Middleware
 app.use(cors());
@@ -181,7 +200,7 @@ app.get('/api/webhook/debug', (req, res) => {
   });
 });
 
-// POST /api/webhook/matches - Receive matches from scraper (OPTIMIZED with batching)
+// POST /api/webhook/matches - Receive matches from scraper (SUPABASE + SQLite fallback)
 app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
   try {
     const { matches, date, sport } = req.body;
@@ -192,6 +211,7 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
     console.log(`📅 Date: ${date}`);
     console.log(`⚽ Sport: ${sport}`);
     console.log(`📊 Matches: ${matches ? matches.length : 0}`);
+    console.log(`🗄️  Database: ${useSupabase ? 'SUPABASE (Cloud)' : 'SQLite (Local)'}`);
     
     if (!matches || !Array.isArray(matches)) {
       return res.status(400).json({ 
@@ -200,10 +220,86 @@ app.post('/api/webhook/matches', verifyApiKey, async (req, res) => {
       });
     }
     
+    // ✅ SUPABASE - Try cloud database first
+    if (useSupabase && supabase) {
+      try {
+        console.log('   🌐 Using Supabase cloud database...');
+        
+        let saved = 0;
+        let duplicates = 0;
+        let errors = 0;
+        
+        // Prepare data for Supabase
+        const supabaseMatches = matches.map(match => ({
+          sport: match.sport || sport,
+          match_date: match.match_date || date,
+          match_time: match.match_time || null,
+          home_team: match.home_team,
+          away_team: match.away_team,
+          home_odds: match.home_odds || null,
+          away_odds: match.away_odds || null,
+          draw_odds: match.draw_odds || null,
+          home_win_percentage: match.home_win_percentage || null,
+          draw_percentage: match.draw_percentage || null,
+          away_win_percentage: match.away_win_percentage || null,
+          avg_home_goals: match.avg_home_goals || null,
+          avg_away_goals: match.avg_away_goals || null,
+          qualifies: match.qualifies || 0,
+          created_at: match.created_at || new Date().toISOString(),
+          all_odds: match.all_odds || null,
+          bookmaker_name: match.bookmaker_name || null,
+          bookmaker_url: match.bookmaker_url || null
+        }));
+        
+        // Insert in batches of 50
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < supabaseMatches.length; i += BATCH_SIZE) {
+          const batch = supabaseMatches.slice(i, i + BATCH_SIZE);
+          const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+          const totalBatches = Math.ceil(supabaseMatches.length / BATCH_SIZE);
+          
+          console.log(`   Processing batch ${batchNum}/${totalBatches} (${batch.length} matches)...`);
+          
+          const { data, error } = await supabase
+            .from('matches')
+            .upsert(batch, {
+              onConflict: 'sport,home_team,away_team,match_time',
+              ignoreDuplicates: false
+            });
+          
+          if (error) {
+            console.error(`   ❌ Batch ${batchNum} error:`, error.message);
+            errors += batch.length;
+          } else {
+            saved += batch.length;
+          }
+        }
+        
+        console.log(`\n✅ Supabase webhook complete:`);
+        console.log(`   💾 Saved: ${saved}`);
+        console.log(`   ❌ Errors: ${errors}`);
+        
+        return res.json({ 
+          success: true,
+          message: 'Matches processed successfully (Supabase)',
+          saved,
+          duplicates: 0,
+          errors,
+          total: matches.length,
+          database: 'supabase'
+        });
+      } catch (supabaseError) {
+        console.error('❌ Supabase error:', supabaseError);
+        console.log('⚠️  Falling back to SQLite...');
+        // Continue to SQLite fallback below
+      }
+    }
+    
+    // ❌ SQLITE FALLBACK (if Supabase fails or not configured)
     if (!db || !dbConnected) {
       return res.status(503).json({ 
         success: false, 
-        error: 'Database not available' 
+        error: 'Database not available (both Supabase and SQLite failed)' 
       });
     }
     
