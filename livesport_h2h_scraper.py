@@ -48,6 +48,13 @@ import pandas as pd
 from bs4 import BeautifulSoup
 
 from selenium import webdriver
+
+# ✅ V7: Supabase fallback for Polish bookmakers (geo-blocking workaround)
+try:
+    from supabase import create_client
+    HAS_SUPABASE = True
+except ImportError:
+    HAS_SUPABASE = False
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -652,10 +659,26 @@ def process_match(url: str, driver: webdriver.Chrome, away_team_focus: bool = Fa
         
         odds = extract_betting_odds_with_api(url, use_multi_bookmaker=True, sport=detected_sport)  # V6: Sport param
         
-        # FALLBACK: Jeśli API nie zwróciło kursów (np. volleyball/tennis/handball)
+        # ✅ V7 FALLBACK 1: Supabase (Polish bookmakers from local scraper)
         if not odds.get('home_odds') and not odds.get('away_odds'):
             if VERBOSE:
-                print(f"   ⚠️ API nie zwróciło kursów - próbuję Selenium scraping...")
+                print(f"   🇵🇱 API failed - trying Supabase (Polish bookmakers)...")
+            
+            supabase_odds = get_polish_bookmaker_odds_from_supabase(
+                home_team=out.get('home_team'),
+                away_team=out.get('away_team'),
+                sport=detected_sport
+            )
+            
+            if supabase_odds.get('home_odds'):
+                odds = supabase_odds
+                if VERBOSE:
+                    print(f"   ✅ Supabase SUCCESS: {supabase_odds.get('bookmakers_found')}")
+        
+        # ✅ V7 FALLBACK 2: Selenium scraping (last resort)
+        if not odds.get('home_odds') and not odds.get('away_odds'):
+            if VERBOSE:
+                print(f"   ⚠️ Supabase failed - trying Selenium scraping (last resort)...")
             odds = extract_betting_odds_selenium(soup, driver, url)  # V5: Nowa funkcja Selenium
         
         out['home_odds'] = odds.get('home_odds')
@@ -1197,6 +1220,148 @@ def extract_team_form(soup: BeautifulSoup, driver: webdriver.Chrome, side: str, 
     
     # Ogranicz do 5 meczów
     return form[:5]
+
+
+# ============================================================================
+# ✅ V7: SUPABASE FALLBACK - Polish Bookmaker Odds
+# ============================================================================
+# PROBLEM: GitHub Actions (USA) doesn't have access to Polish bookmakers (geo-blocking)
+# SOLUTION: Fetch odds from Supabase (uploaded by local scraper running on Polish IP)
+# ============================================================================
+
+def get_polish_bookmaker_odds_from_supabase(home_team: str, away_team: str, sport: str = 'football') -> Dict[str, Optional[float]]:
+    """
+    Fetch Polish bookmaker odds from Supabase (Fortuna/Superbet/STS)
+    
+    This is a FALLBACK when LiveSport API doesn't return odds (usually due to geo-blocking)
+    
+    Args:
+        home_team: Home team name (will be normalized)
+        away_team: Away team name (will be normalized)
+        sport: Sport type (default: football)
+    
+    Returns:
+        {
+            'home_odds': 2.10,
+            'away_odds': 1.65,
+            'draw_odds': 3.20,
+            'bookmakers_found': ['Fortuna', 'Superbet', 'STS'],
+            'all_odds': {
+                'Fortuna': {'home': 2.10, 'away': 1.65, 'draw': 3.20},
+                'Superbet': {'home': 2.05, 'away': 1.70, 'draw': 3.10},
+                'STS': {'home': 2.15, 'away': 1.60, 'draw': 3.25}
+            },
+            'source': 'supabase_polish_scraper'
+        }
+    """
+    if not HAS_SUPABASE:
+        return {}
+    
+    try:
+        import unicodedata
+        
+        # Normalize team names (same logic as local_bookmaker_scraper.py)
+        def normalize_name(name):
+            nfd = unicodedata.normalize('NFD', name)
+            without_accents = ''.join(c for c in nfd if unicodedata.category(c) != 'Mn')
+            normalized = without_accents.lower().strip()
+            normalized = re.sub(r'[^a-z0-9]+', '_', normalized)
+            return normalized.strip('_')
+        
+        home_norm = normalize_name(home_team)
+        away_norm = normalize_name(away_team)
+        match_key = f"{home_norm}_vs_{away_norm}"
+        
+        # Get Supabase credentials
+        supabase_url = os.getenv('SUPABASE_URL', 'https://bfslhqnxsgmdyptrqshj.supabase.co')
+        supabase_key = os.getenv('SUPABASE_KEY')
+        
+        if not supabase_key:
+            if VERBOSE:
+                print("   ⚠️ SUPABASE_KEY not set - skipping Supabase fallback")
+            return {}
+        
+        # Query Supabase
+        supabase = create_client(supabase_url, supabase_key)
+        
+        response = supabase.table('bookmaker_odds')\
+            .select('bookmakers, home_team_original, away_team_original')\
+            .eq('match_key', match_key)\
+            .eq('is_active', True)\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+        
+        if not response.data:
+            if VERBOSE:
+                print(f"   ℹ️ No Supabase data for: {match_key}")
+            return {}
+        
+        # Parse bookmakers JSON
+        record = response.data[0]
+        bookmakers = json.loads(record['bookmakers']) if isinstance(record['bookmakers'], str) else record['bookmakers']
+        
+        if VERBOSE:
+            print(f"   ✅ SUPABASE: Found odds for {record['home_team_original']} vs {record['away_team_original']}")
+            print(f"      Bookmakers: {', '.join(bookmakers.keys())}")
+        
+        # Build result in same format as LiveSport API
+        result = {
+            'home_odds': None,
+            'away_odds': None,
+            'draw_odds': None,
+            'bookmakers_found': [],
+            'best_home_bookmaker': None,
+            'best_away_bookmaker': None,
+            'all_odds': {},
+            'source': 'supabase_polish_scraper'
+        }
+        
+        best_home = 0
+        best_away = 0
+        
+        # Process each bookmaker (Fortuna, Superbet, STS)
+        for bm_name, bm_odds in bookmakers.items():
+            if not bm_odds:
+                continue
+            
+            # Capitalize bookmaker name
+            bm_name_pretty = bm_name.capitalize()
+            
+            result['bookmakers_found'].append(bm_name_pretty)
+            result['all_odds'][bm_name_pretty] = {
+                'home': bm_odds.get('home_odds'),
+                'away': bm_odds.get('away_odds'),
+                'draw': bm_odds.get('draw_odds')
+            }
+            
+            # Track best odds
+            home_odd = bm_odds.get('home_odds', 0) or 0
+            away_odd = bm_odds.get('away_odds', 0) or 0
+            
+            if home_odd > best_home:
+                best_home = home_odd
+                result['home_odds'] = home_odd
+                result['best_home_bookmaker'] = bm_name_pretty
+            
+            if away_odd > best_away:
+                best_away = away_odd
+                result['away_odds'] = away_odd
+                result['best_away_bookmaker'] = bm_name_pretty
+            
+            # Draw odds (use first available)
+            if not result['draw_odds'] and bm_odds.get('draw_odds'):
+                result['draw_odds'] = bm_odds.get('draw_odds')
+        
+        if VERBOSE and result['home_odds']:
+            print(f"      Best: {result['home_odds']} ({result['best_home_bookmaker']}) / {result['away_odds']} ({result['best_away_bookmaker']})")
+        
+        return result
+        
+    except Exception as e:
+        if VERBOSE:
+            print(f"   ⚠️ Supabase fallback error: {e}")
+        return {}
 
 
 @retry(
