@@ -1379,6 +1379,583 @@ app.get('/api/bookmakers', (req, res) => {
   );
 });
 
+// ============================================================================
+// AUTHENTICATION ENDPOINTS
+// ============================================================================
+
+// Middleware: Authenticate user with Supabase JWT
+const authenticateUser = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'Missing authorization header'
+    });
+  }
+  
+  const token = authHeader.replace('Bearer ', '');
+  
+  try {
+    // Verify JWT with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+    }
+    
+    // Attach user to request
+    req.user = user;
+    req.token = token;
+    next();
+    
+  } catch (error) {
+    console.error('❌ Auth error:', error);
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+};
+
+// Middleware: Log user activity
+const logActivity = async (userId, action, details = null, ipAddress = null) => {
+  try {
+    if (useSupabase && supabase) {
+      await supabase.from('user_activity').insert({
+        user_id: userId,
+        action,
+        details,
+        ip_address: ipAddress,
+        created_at: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️  Failed to log activity:', error.message);
+  }
+};
+
+// POST /api/auth/signup - Register new user
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters'
+      });
+    }
+    
+    // Create user with Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: name || email.split('@')[0]
+        }
+      }
+    });
+    
+    if (error) {
+      console.error('❌ Signup error:', error);
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    // Log activity
+    if (data.user) {
+      await logActivity(data.user.id, 'signup', { email }, req.ip);
+    }
+    
+    return res.json({
+      success: true,
+      user: data.user,
+      session: data.session,
+      message: 'User created successfully. Please check your email to verify your account.'
+    });
+    
+  } catch (error) {
+    console.error('❌ Signup error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Signup failed'
+    });
+  }
+});
+
+// POST /api/auth/login - Login user
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
+    }
+    
+    // Sign in with Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
+    if (error) {
+      console.error('❌ Login error:', error);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+    
+    // Log activity
+    if (data.user) {
+      await logActivity(data.user.id, 'login', { email }, req.ip);
+    }
+    
+    return res.json({
+      success: true,
+      user: data.user,
+      session: data.session
+    });
+    
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Login failed'
+    });
+  }
+});
+
+// POST /api/auth/logout - Logout user
+app.post('/api/auth/logout', authenticateUser, async (req, res) => {
+  try {
+    // Sign out with Supabase
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      console.error('❌ Logout error:', error);
+    }
+    
+    // Log activity
+    await logActivity(req.user.id, 'logout', null, req.ip);
+    
+    return res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Logout error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Logout failed'
+    });
+  }
+});
+
+// GET /api/auth/user - Get current user
+app.get('/api/auth/user', authenticateUser, async (req, res) => {
+  try {
+    // Fetch user preferences
+    const { data: preferences, error: prefError } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .single();
+    
+    // Fetch subscription
+    const { data: subscription, error: subError } = await supabase
+      .from('email_subscriptions')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .single();
+    
+    return res.json({
+      success: true,
+      user: req.user,
+      preferences: preferences || {},
+      subscription: subscription || {}
+    });
+    
+  } catch (error) {
+    console.error('❌ Get user error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user data'
+    });
+  }
+});
+
+// ============================================================================
+// USER PREFERENCES ENDPOINTS
+// ============================================================================
+
+// GET /api/preferences - Get user preferences
+app.get('/api/preferences', authenticateUser, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {  // PGRST116 = not found
+      console.error('❌ Preferences error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch preferences'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      preferences: data || {
+        email_notifications_enabled: true,
+        daily_email_time: '21:00:00',
+        preferred_sports: ['Football', 'Volleyball', 'Handball'],
+        min_odds: 1.37,
+        max_odds: 10.00,
+        preferred_bookmakers: ['Fortuna', 'Superbet', 'STS']
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Preferences error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch preferences'
+    });
+  }
+});
+
+// PUT /api/preferences - Update user preferences
+app.put('/api/preferences', authenticateUser, async (req, res) => {
+  try {
+    const updates = req.body;
+    
+    // Validate allowed fields
+    const allowedFields = [
+      'email_notifications_enabled',
+      'daily_email_time',
+      'send_on_weekends',
+      'preferred_sports',
+      'min_odds',
+      'max_odds',
+      'preferred_bookmakers',
+      'show_all_bookmakers',
+      'only_qualifying_matches',
+      'min_win_percentage',
+      'language',
+      'timezone'
+    ];
+    
+    const filteredUpdates = {};
+    for (const key of allowedFields) {
+      if (updates.hasOwnProperty(key)) {
+        filteredUpdates[key] = updates[key];
+      }
+    }
+    
+    // Upsert preferences
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .upsert({
+        user_id: req.user.id,
+        ...filteredUpdates,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Update preferences error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update preferences'
+      });
+    }
+    
+    // Log activity
+    await logActivity(req.user.id, 'update_preferences', { fields: Object.keys(filteredUpdates) }, req.ip);
+    
+    return res.json({
+      success: true,
+      preferences: data
+    });
+    
+  } catch (error) {
+    console.error('❌ Update preferences error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update preferences'
+    });
+  }
+});
+
+// ============================================================================
+// SUBSCRIPTION ENDPOINTS
+// ============================================================================
+
+// GET /api/subscription - Get user subscription
+app.get('/api/subscription', authenticateUser, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('email_subscriptions')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error('❌ Subscription error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch subscription'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      subscription: data || {
+        subscription_type: 'free',
+        is_active: false,
+        daily_match_limit: 10
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Subscription error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch subscription'
+    });
+  }
+});
+
+// POST /api/subscription - Create or activate subscription
+app.post('/api/subscription', authenticateUser, async (req, res) => {
+  try {
+    const { email, subscription_type } = req.body;
+    
+    // Validate subscription type
+    if (!['free', 'premium', 'pro'].includes(subscription_type)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid subscription type. Must be free, premium, or pro.'
+      });
+    }
+    
+    // Determine daily match limit
+    const dailyLimits = {
+      free: 10,
+      premium: 50,
+      pro: -1  // Unlimited
+    };
+    
+    // Upsert subscription
+    const { data, error } = await supabase
+      .from('email_subscriptions')
+      .upsert({
+        user_id: req.user.id,
+        email: email || req.user.email,
+        subscription_type,
+        is_active: true,
+        verified: false,
+        daily_match_limit: dailyLimits[subscription_type],
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Create subscription error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create subscription'
+      });
+    }
+    
+    // Log activity
+    await logActivity(req.user.id, 'create_subscription', { subscription_type }, req.ip);
+    
+    // Log to subscription history
+    await supabase.from('subscription_history').insert({
+      user_id: req.user.id,
+      subscription_id: data.id,
+      action: 'created',
+      new_subscription_type: subscription_type
+    });
+    
+    return res.json({
+      success: true,
+      subscription: data
+    });
+    
+  } catch (error) {
+    console.error('❌ Create subscription error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create subscription'
+    });
+  }
+});
+
+// DELETE /api/subscription - Unsubscribe
+app.delete('/api/subscription', authenticateUser, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('email_subscriptions')
+      .update({
+        is_active: false,
+        canceled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', req.user.id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Unsubscribe error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to unsubscribe'
+      });
+    }
+    
+    // Log activity
+    await logActivity(req.user.id, 'unsubscribe', null, req.ip);
+    
+    // Log to subscription history
+    await supabase.from('subscription_history').insert({
+      user_id: req.user.id,
+      subscription_id: data.id,
+      action: 'canceled',
+      old_subscription_type: data.subscription_type
+    });
+    
+    return res.json({
+      success: true,
+      message: 'Unsubscribed successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Unsubscribe error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to unsubscribe'
+    });
+  }
+});
+
+// ============================================================================
+// PASSWORD RESET ENDPOINTS
+// ============================================================================
+
+// POST /api/auth/reset-password - Request password reset
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+    
+    // Send password reset email via Supabase
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${req.protocol}://${req.get('host')}/reset-password`
+    });
+    
+    if (error) {
+      console.error('❌ Password reset error:', error);
+      // Don't reveal if email exists
+    }
+    
+    // Always return success (don't reveal if email exists)
+    return res.json({
+      success: true,
+      message: 'If the email exists, a password reset link has been sent.'
+    });
+    
+  } catch (error) {
+    console.error('❌ Password reset error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to send password reset email'
+    });
+  }
+});
+
+// POST /api/auth/update-password - Update password
+app.post('/api/auth/update-password', authenticateUser, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'New password must be at least 6 characters'
+      });
+    }
+    
+    // Update password via Supabase
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    
+    if (error) {
+      console.error('❌ Update password error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update password'
+      });
+    }
+    
+    // Log activity
+    await logActivity(req.user.id, 'update_password', null, req.ip);
+    
+    return res.json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Update password error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update password'
+    });
+  }
+});
+
+// ============================================================================
+// STATIC FILE SERVING
+// ============================================================================
+
 // Catch-all route - serve index.html for SPA routing
 // Try multiple locations for React build
 const buildPaths = [
