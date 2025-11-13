@@ -131,7 +131,7 @@ class LiveSportOddsAPI:
         """
         
         # ✅ NOWE: Określ betType na podstawie sportu
-        if sport and sport.lower() in ['volleyball', 'handball', 'tennis']:
+        if sport and sport.lower() in ['volleyball', 'handball', 'tennis', 'rugby']:
             bet_type = 'HOME_AWAY'  # Brak remisu
         else:
             bet_type = 'HOME_DRAW_AWAY'  # Z remisem (Football, Basketball, etc.)
@@ -349,6 +349,8 @@ class LiveSportOddsAPI:
                 sport = 'handball'
             elif '/tenis/' in match_url or '/tennis/' in match_url:
                 sport = 'tennis'
+            elif '/rugby/' in match_url:
+                sport = 'rugby'
         
         # Wydobądź Event ID z URL
         event_id = self.extract_event_id_from_url(match_url)

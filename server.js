@@ -1149,6 +1149,175 @@ app.get('/api/sports', async (req, res) => {
   );
 });
 
+// ============================================================================
+// BOOKMAKER ODDS ENDPOINTS (Polish Bookmakers: Fortuna, Superbet, STS)
+// ============================================================================
+
+// GET /api/bookmaker-odds - Get bookmaker odds for a match
+app.get('/api/bookmaker-odds', async (req, res) => {
+  const { match_key, date } = req.query;
+  
+  if (!match_key) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required parameter: match_key'
+    });
+  }
+  
+  // ✅ SUPABASE - Only use cloud database (local scraper uploads here)
+  if (!useSupabase || !supabase) {
+    return res.status(503).json({
+      success: false,
+      error: 'Supabase not configured. Bookmaker odds require Supabase.'
+    });
+  }
+  
+  try {
+    let query = supabase
+      .from('bookmaker_odds')
+      .select('*')
+      .eq('match_key', match_key);
+    
+    // Optional date filter
+    if (date) {
+      query = query.eq('match_date', date);
+    }
+    
+    // Order by created_at desc to get latest odds
+    query = query.order('created_at', { ascending: false });
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      return res.json({
+        success: true,
+        odds: null,
+        message: 'No bookmaker odds found for this match'
+      });
+    }
+    
+    // Group odds by bookmaker
+    const bookmakers = {};
+    data.forEach(row => {
+      if (!bookmakers[row.bookmaker]) {
+        bookmakers[row.bookmaker] = {
+          bookmaker: row.bookmaker,
+          home_odds: row.home_odds,
+          draw_odds: row.draw_odds,
+          away_odds: row.away_odds,
+          created_at: row.created_at,
+          updated_at: row.updated_at || row.created_at
+        };
+      }
+    });
+    
+    return res.json({
+      success: true,
+      match_key,
+      bookmakers,
+      last_update: data[0].created_at
+    });
+    
+  } catch (error) {
+    console.error('❌ Bookmaker odds error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/bookmaker-odds/stats - Get bookmaker scraping statistics
+app.get('/api/bookmaker-odds/stats', async (req, res) => {
+  // ✅ SUPABASE - Only use cloud database
+  if (!useSupabase || !supabase) {
+    return res.status(503).json({
+      success: false,
+      error: 'Supabase not configured. Bookmaker stats require Supabase.'
+    });
+  }
+  
+  try {
+    // Get today's date
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get all bookmaker odds for today
+    const { data, error } = await supabase
+      .from('bookmaker_odds')
+      .select('*')
+      .eq('match_date', today);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      return res.json({
+        success: true,
+        stats: {
+          total_matches: 0,
+          with_fortuna: 0,
+          with_superbet: 0,
+          with_sts: 0,
+          with_all_three: 0,
+          last_update: null
+        }
+      });
+    }
+    
+    // Calculate statistics
+    const matchKeys = new Set();
+    const bookmakersByMatch = {};
+    let lastUpdate = null;
+    
+    data.forEach(row => {
+      matchKeys.add(row.match_key);
+      
+      if (!bookmakersByMatch[row.match_key]) {
+        bookmakersByMatch[row.match_key] = new Set();
+      }
+      bookmakersByMatch[row.match_key].add(row.bookmaker);
+      
+      // Track latest update
+      if (!lastUpdate || row.created_at > lastUpdate) {
+        lastUpdate = row.created_at;
+      }
+    });
+    
+    // Count matches by bookmaker coverage
+    let withFortuna = 0;
+    let withSuperbet = 0;
+    let withSts = 0;
+    let withAllThree = 0;
+    
+    Object.values(bookmakersByMatch).forEach(bookmakers => {
+      if (bookmakers.has('Fortuna')) withFortuna++;
+      if (bookmakers.has('Superbet')) withSuperbet++;
+      if (bookmakers.has('STS')) withSts++;
+      if (bookmakers.size >= 3) withAllThree++;
+    });
+    
+    return res.json({
+      success: true,
+      stats: {
+        total_matches: matchKeys.size,
+        with_fortuna: withFortuna,
+        with_superbet: withSuperbet,
+        with_sts: withSts,
+        with_all_three: withAllThree,
+        last_update: lastUpdate
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Bookmaker stats error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // GET /api/dates - Lista dat
 app.get('/api/dates', (req, res) => {
   if (!db) {

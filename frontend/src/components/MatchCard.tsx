@@ -2,8 +2,9 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar, Clock, TrendingUp, ExternalLink } from 'lucide-react'
-import { cn, getSportIcon, getSportBadgeClass, formatMatchOdds } from '@/lib/utils'
+import { cn, getSportIcon, getSportBadgeClass, formatMatchOdds, generateMatchKey } from '@/lib/utils'
 import type { Match } from '@/types'
+import { BookmakerOdds } from './BookmakerOdds'
 
 interface MatchCardProps {
   match: Match
@@ -102,6 +103,14 @@ export function MatchCard({ match, onClick }: MatchCardProps) {
             </Badge>
           </div>
         )}
+
+        {/* Polish Bookmaker Odds */}
+        <div className="border-t pt-4 mt-4">
+          <BookmakerOdds 
+            matchKey={generateMatchKey(match.home_team, match.away_team, match.match_date)} 
+            date={match.match_date}
+          />
+        </div>
       </CardContent>
 
       <CardFooter className="p-6 pt-0">

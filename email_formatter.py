@@ -113,7 +113,7 @@ class EmailFormatter:
         color = self.BOOKMAKER_COLORS.get(bookmaker, '#6c757d')
         
         # Sprawdź czy sport ma remis
-        no_draw_sports = ['volleyball', 'handball', 'tennis']
+        no_draw_sports = ['volleyball', 'handball', 'tennis', 'rugby']
         has_draw = sport.lower() not in no_draw_sports
         
         home = self._format_odds_value(odds['home'])
